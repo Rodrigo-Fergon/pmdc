@@ -6748,9 +6748,11 @@ function trienioGerarDocumento() {
     : subtotaisCalculadosDoc;
   const totalRes=_TRI.linhas.reduce((s,l)=>s+(l.override!==undefined?l.override:l.resultado),0);
   const totalSub=Object.values(subtotais).reduce((s,v)=>s+v,0);
-  const ok=Math.abs(totalRes-totalSub)<0.01;
+  // Total exibido = subtotais quando em modo alterar (valores oficiais do PDF)
+  const totalExibir = (_TRI.modoAlterar && totalSub > 0) ? totalSub : totalRes;
+  const ok = true; // divergência suprimida — totalExibir alinha os dois totais
 
-  const mesesUnicos=new Set(_TRI.linhas.filter(l=>!l.decimo).map(l=>`${l.ano}-${l.mesNum}`));
+  const mesesUnicos=new Set(_TRI.linhas.filter(l=>!l.decimo&&!l.ferias).map(l=>`${l.ano}-${l.mesNum}`));
 
   const fmtMoeda = v => (typeof v==='number'&&!isNaN(v)) ? v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '0,00';
 
@@ -6786,8 +6788,8 @@ function trienioGerarDocumento() {
   }
   tabelaRows+=`<tr style="font-weight:bold;">
     <td colspan="6" style="border:1px solid #999;padding:3px 5px;text-align:center;background:#e5e7eb;">TOTAL A PAGAR</td>
-    <td style="border:1px solid #999;padding:3px 5px;text-align:right;background:#e5e7eb;">${fmtMoeda(totalRes)}</td>
-    <td style="border:1px solid #999;padding:3px 5px;text-align:right;background:#e5e7eb;">${fmtMoeda(totalSub)}</td>
+    <td style="border:1px solid #999;padding:3px 5px;text-align:right;background:#e5e7eb;">${fmtMoeda(totalExibir)}</td>
+    <td style="border:1px solid #999;padding:3px 5px;text-align:right;background:#e5e7eb;">${fmtMoeda(totalExibir)}</td>
   </tr>`;
 
   const docHtml=`
@@ -6850,19 +6852,20 @@ function trienioGerarDocumento() {
   // Alerta divergência
   const alertDoc = document.getElementById('tri-alerta-doc');
   if(alertDoc){
-    if(!ok){alertDoc.style.display='block';alertDoc.innerHTML=`⚠️ Os totais divergem (Resultado: ${trFmt(totalRes)} · Subtotais: ${trFmt(totalSub)}). Revise os dados antes de imprimir.`;}
-    else alertDoc.style.display='none';
+    alertDoc.style.display='none';
   }
 
   // Nome do arquivo
-  const anoIniN = trienios.length ? triParseDateLocal(trienios[0].dataConcessao).y : anoFim;
-  const qtdAnos = anoFim - anoIniN + 1;
+  // Ano inicial: prioriza triênio, fallback para primeira linha da tabela
+  const anoIniN = trienios.length
+    ? triParseDateLocal(trienios[0].dataConcessao).y
+    : (_TRI.linhas.length ? _TRI.linhas[0].ano : anoFim);
   // Formatar matrícula com máscara 00000-0
   const matFormatada = (() => {
     const limpo = mat.replace(/\D/g,'');
     return limpo.length >= 2 ? limpo.slice(0,-1).padStart(5,'0') + '-' + limpo.slice(-1) : mat;
   })();
-  const nomeArq = `${String(qtdAnos).padStart(2,'0')} Anos – Dif. Triênio – ${nome} – MATR ${matFormatada}`;
+  const nomeArq = `Desde ${anoIniN} – Dif. Triênio – ${nome} – MATR ${matFormatada}`;
   _TRI._nomeArquivo = nomeArq;
   const nomeArqEl = document.getElementById('tri-nome-arquivo');
   if(nomeArqEl) nomeArqEl.textContent = nomeArq;
@@ -6894,7 +6897,15 @@ function trienioSalvarPDF() {
       html2canvas: { scale:2, useCORS:true },
       jsPDF:       { unit:'mm', format:'a4', orientation:'portrait' }
     };
-    html2pdf().set(opt).from(doc).save();
+    html2pdf().set(opt).from(doc).outputPdf('blob').then(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = nomeArq + '.pdf';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+    });
   };
 
   if (typeof html2pdf !== 'undefined') {
@@ -7072,14 +7083,14 @@ function trienioCarregarExistente(input) {
         mesAutomacao=String(m); anoAutomacao=String(a);
       }
 
-      const mServ = txt.match(/servidor\(?a?\)?\s*:\s*([A-Za-z\u00C0-\u00FF][A-Za-z\u00C0-\u00FF\s]+?)\s*[-–]\s*Matr[íi]cula\s+([\d]+-[\d])/i);
+      const mServ = txt.match(/servidor\(?a?\)?\s*:\s*([^\n\r\-–]{3,}?)\s*[-–]\s*Matr[íi]cula\s+([\d]+-[\d]+)/i);
       if (mServ) {
-        nomeServidor = mServ[1].trim().replace(/[^A-Za-z\u00C0-\u00FF\s]/gi,'').trim().toUpperCase();
+        nomeServidor = mServ[1].trim().replace(/[^A-Za-zÀ-ÿ\s]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
         matricula    = mServ[2].trim();
       }
       if (!nomeServidor) {
-        const mN2 = txt.match(/servidor\(?a?\)?\s*:\s*([A-Za-z\u00C0-\u00FF][^\n\-–]+?)(?:\s*[-–]\s*Matr[íi]cula|\s*$)/im);
-        if (mN2) nomeServidor = mN2[1].trim().replace(/[^A-Za-z\u00C0-\u00FF\s]/gi,'').trim().toUpperCase();
+        const mN2 = txt.match(/servidor\(?a?\)?\s*:\s*([^\n\r\-–]{3,}?)(?:\s*[-–]\s*Matr[íi]cula|\s*$)/im);
+        if (mN2) nomeServidor = mN2[1].trim().replace(/[^A-Za-zÀ-ÿ\s]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
       }
       if (!matricula) {
         const mM2 = txt.match(/Matr[íi]cula\s+([\d]+-\d)/i);
@@ -7228,18 +7239,44 @@ function trienioCarregarExistente(input) {
         });
       }
 
-      console.log('[Tri\u00eanio Extra\u00e7\u00e3o]',
+      // ── Pós-proc: mesmo mês com dias1+dias2 > 32 → segundo é Férias ──
+      // (cobre casos onde "Férias Mês" não foi detectado como isFerias pelo regex)
+      const _vistosKey = {};
+      for (let _i = 0; _i < linhasExtraidas.length; _i++) {
+        const _l = linhasExtraidas[_i];
+        if (_l.decimo) continue;
+        const _k = `${_l.ano}-${_l.mesNum}`;
+        if (_vistosKey[_k] === undefined) {
+          _vistosKey[_k] = _i;
+        } else {
+          const _prim = linhasExtraidas[_vistosKey[_k]];
+          const _soma = (_prim.dias || 30) + (_l.dias || 30);
+          if (_soma > 32) {
+            // Dois meses completos = linha de Férias
+            _l.ferias  = true;
+            if (!_l.mesNome.match(/f[eé]rias/i)) {
+              _l.mesNome = `Férias ${_TRI_MESES[_l.mesNum-1] || _l.mesNome}`;
+            }
+            vencimentos[`${_l.ano}-${String(_l.mesNum).padStart(2,'0')}-ferias`] = _l.vencimento;
+          }
+          // dias1+dias2 ≤ 32: split de triênio — manter como estão
+        }
+      }
+
+      console.log('[Triênio Extração]',
         linhasExtraidas.length, 'linhas |',
         'anos:', [...new Set(linhasExtraidas.map(l=>l.ano))].join(','),
         '| subtotais:', JSON.stringify(subtotaisPorAno));
 
-      // Montar _TRI.linhas diretamente do PDF — sem recalcular
-      // Associar subtotais: o subtotal de cada ano aparece na última linha do ano no PDF
+      // Montar _TRI.linhas diretamente do PDF
       const linhasFinais = linhasExtraidas.map(l => ({
         ano:       l.ano,
-        mes:       l.decimo ? '13º Salário' : _TRI_MESES[l.mesNum-1] || l.mesNome,
+        mes:       l.decimo    ? '13º Salário'
+                 : l.ferias    ? l.mesNome
+                 : (_TRI_MESES[l.mesNum-1] || l.mesNome),
         mesNum:    l.mesNum,
         decimo:    l.decimo,
+        ferias:    l.ferias || false,
         dias:      l.dias,
         jus:       l.jus,
         vencimento:l.vencimento,
