@@ -7051,29 +7051,37 @@ function trienioCarregarExistente(input) {
       setMsg('Extraindo cabeçalho…');
 
       // ── CABEÇALHO ──
+      // OCR pode quebrar uma frase em duas linhas de forma inesperada (espaçamento
+      // irregular, artefatos de scan). Para o cabeçalho, colapsamos todas as quebras
+      // de linha em espaço único ANTES de aplicar os regex — assim nenhum campo
+      // (processo, período, nome do servidor) se perde por estar dividido em duas linhas.
+      // A tabela continua usando `txt` com as quebras originais (precisa da estrutura
+      // linha-a-linha), apenas o cabeçalho usa esta versão colapsada.
+      const txtHeader = txt.replace(/[ \t]*\n[ \t]*/g, ' ').replace(/\s{2,}/g, ' ');
+
       let processo='', folha='', destinatario='Sr. Chefe', dataDoc='', nomeServidor='', matricula='';
       let dataIniCalc='', dataFimCalc='', mesAutomacao='', anoAutomacao='';
 
-      const mProc = txt.match(/Processo[:\s]+([\w\/\-\.]+)/i);
+      const mProc = txtHeader.match(/Processo[:\s]+([\w\/\-\.]+)/i);
       if (mProc) processo = mProc[1].trim();
 
-      const mFls = txt.match(/Fls[:\s.]+(\d+)/i);
+      const mFls = txtHeader.match(/Fls[:\s.]+(\d+)/i);
       if (mFls) folha = mFls[1].trim();
 
       const mDest = txt.match(/^(Sr\.\s*\w+|Sra\.\s*\w+)/m);
       if (mDest) destinatario = mDest[1].trim();
 
-      const mDD = txt.match(/Duque de Caxias,?\s+(\d{2}\/\d{2}\/\d{4})/i);
+      const mDD = txtHeader.match(/Duque de Caxias,?\s+(\d{2}\/\d{2}\/\d{4})/i);
       if (mDD) dataDoc = mDD[1];
       if (!dataDoc) {
-        const mDD2 = txt.match(/Duque de Caxias,?\s+(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i);
+        const mDD2 = txtHeader.match(/Duque de Caxias,?\s+(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i);
         if (mDD2) {
           const mm = {janeiro:'01',fevereiro:'02','março':'03',marco:'03',abril:'04',maio:'05',junho:'06',julho:'07',agosto:'08',setembro:'09',outubro:'10',novembro:'11',dezembro:'12'};
           dataDoc = String(mDD2[1]).padStart(2,'0')+'/'+(mm[mDD2[2].toLowerCase()]||'01')+'/'+mDD2[3];
         }
       }
 
-      const mPer = txt.match(/per[ií]odo de\s+(\d{2}\/\d{2}\/\d{4})\s+a\s+(\d{2}\/\d{2}\/\d{4})/i);
+      const mPer = txtHeader.match(/per[ií]odo de\s+(\d{2}\/\d{2}\/\d{4})\s+a\s+(\d{2}\/\d{2}\/\d{4})/i);
       if (mPer) { dataIniCalc=mPer[1]; dataFimCalc=mPer[2]; }
 
       if (dataFimCalc) {
@@ -7083,17 +7091,17 @@ function trienioCarregarExistente(input) {
         mesAutomacao=String(m); anoAutomacao=String(a);
       }
 
-      const mServ = txt.match(/servidor\(?a?\)?\s*:\s*([^\n\r\-–]{3,}?)\s*[-–]\s*Matr[íi]cula\s+([\d]+-[\d]+)/i);
+      const mServ = txtHeader.match(/servidor\(?a?\)?\s*:\s*([^\-–]{3,}?)\s*[-–]\s*Matr[íi]cula\s+([\d]+-[\d]+)/i);
       if (mServ) {
         nomeServidor = mServ[1].trim().replace(/[^A-Za-zÀ-ÿ\s]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
         matricula    = mServ[2].trim();
       }
       if (!nomeServidor) {
-        const mN2 = txt.match(/servidor\(?a?\)?\s*:\s*([^\n\r\-–]{3,}?)(?:\s*[-–]\s*Matr[íi]cula|\s*$)/im);
+        const mN2 = txtHeader.match(/servidor\(?a?\)?\s*:\s*([^\-–]{3,}?)(?:\s*[-–]\s*Matr[íi]cula|\s*$)/i);
         if (mN2) nomeServidor = mN2[1].trim().replace(/[^A-Za-zÀ-ÿ\s]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
       }
       if (!matricula) {
-        const mM2 = txt.match(/Matr[íi]cula\s+([\d]+-\d)/i);
+        const mM2 = txtHeader.match(/Matr[íi]cula\s+([\d]+-\d)/i);
         if (mM2) matricula = mM2[1].trim();
       }
 
@@ -7143,7 +7151,27 @@ function trienioCarregarExistente(input) {
       const vencimentos = {};
       let anoAtual = 0;
 
-      for (const rawLine of txt.split('\n')) {
+      // Pré-processar: fundir linha com mês-sem-dados com linha seguinte que tem dados
+      // Causa: pdf.js separa "Novembro" e "10 33,33% 1.425,12..." em Y ligeiramente diferentes
+      const _txRaw = txt.split('\n');
+      const _txLines = [];
+      for (let _ri = 0; _ri < _txRaw.length; _ri++) {
+        const _cur = _txRaw[_ri].trim();
+        if (!_cur) { _txLines.push(''); continue; }
+        const _hasMes = /\b(Janeiro|Fevereiro|Mar[cçg]o|Abril|Maio|Junho|Julho|Agosto|Setembro|Outubro|Novembro|Dezembro)\b/i.test(_cur)
+                     || /13[°º]?\s*Sal[aá]r/i.test(_cur);
+        const _hasTri = /\b(6|12|18|24)\s*%/.test(_cur);
+        if (_hasMes && !_hasTri && _ri + 1 < _txRaw.length) {
+          const _next = _txRaw[_ri + 1].trim();
+          if (_next && /\b(6|12|18|24)\s*%/.test(_next)) {
+            _txLines.push(_cur + ' ' + _next);
+            _ri++; continue;
+          }
+        }
+        _txLines.push(_cur);
+      }
+
+      for (const rawLine of _txLines) {
         const l = rawLine.trim();
         if (!l) continue;
 
