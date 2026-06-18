@@ -7034,6 +7034,14 @@ function trienioCarregarExistente(input) {
           });
         }
         txt = '';
+        // Criar worker explícito e forçar PSM 6 (bloco único de texto, leitura
+        // linha-a-linha). Sem isso, o Tesseract usa segmentação automática (PSM 3)
+        // que pode interpretar a tabela como blocos por COLUNA — por exemplo,
+        // extraindo todos os anos (2015, 2016, 2017...) como um bloco isolado,
+        // separado dos meses/valores, quebrando o vínculo ano↔linha e causando
+        // perda de linhas (ex: "2015 Novembro 10 dias" some da extração).
+        const _ocrWorker = await Tesseract.createWorker('por+eng');
+        await _ocrWorker.setParameters({ tessedit_pageseg_mode: '6' });
         for (let p=1; p<=pdf.numPages; p++) {
           setMsg(`OCR — página ${p} de ${pdf.numPages}…`);
           const page = await pdf.getPage(p);
@@ -7041,12 +7049,17 @@ function trienioCarregarExistente(input) {
           const canvas = document.createElement('canvas');
           canvas.width=vp.width; canvas.height=vp.height;
           await page.render({canvasContext:canvas.getContext('2d'), viewport:vp}).promise;
-          const {data:{text}} = await Tesseract.recognize(canvas.toDataURL('image/png'),'por+eng',{
-            logger: m=>{ if(m.status==='recognizing text') setMsg(`OCR p.${p} — ${Math.round((m.progress||0)*100)}%`); }
-          });
+          const {data:{text}} = await _ocrWorker.recognize(canvas.toDataURL('image/png'));
           txt += text + '\n';
         }
+        await _ocrWorker.terminate();
       }
+
+      // ── DEBUG: exibir texto OCR bruto para diagnóstico ──
+      // Mostra exatamente o que o OCR extraiu, permitindo identificar problemas
+      // de extração comparando com o PDF original. Pode ser removido depois.
+      console.log('[Triênio OCR Bruto]', txt);
+      window._ultimoOcrTrienio = txt;
 
       setMsg('Extraindo cabeçalho…');
 
@@ -7401,6 +7414,35 @@ function trienioCarregarExistente(input) {
       setVal('tri-ano-automacao', anoAutomacao);
 
       trienioRenderTrienios();
+
+      // ── DEBUG TEMPORÁRIO: botão para visualizar o texto bruto do OCR ──
+      // Ajuda a diagnosticar por que certos dados não foram extraídos corretamente.
+      // Pode ser removido depois que o problema de extração for resolvido.
+      let _dbgBtn = document.getElementById('tri-debug-ocr-btn');
+      if (!_dbgBtn) {
+        _dbgBtn = document.createElement('button');
+        _dbgBtn.id = 'tri-debug-ocr-btn';
+        _dbgBtn.textContent = '🔍 Ver texto extraído do PDF (diagnóstico)';
+        _dbgBtn.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:9998;padding:.6rem 1rem;background:#1e3a5f;color:#7ec8e3;border:1px solid #2a5a8a;border-radius:8px;font-size:.8rem;cursor:pointer;font-family:inherit;';
+        document.body.appendChild(_dbgBtn);
+      }
+      _dbgBtn.onclick = () => {
+        let _modal = document.getElementById('tri-debug-ocr-modal');
+        if (_modal) _modal.remove();
+        _modal = document.createElement('div');
+        _modal.id = 'tri-debug-ocr-modal';
+        _modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:2rem;';
+        _modal.innerHTML = `
+          <div style="background:#0d1b2a;border:1px solid #2a5a8a;border-radius:10px;padding:1.2rem;max-width:800px;width:100%;max-height:80vh;display:flex;flex-direction:column;gap:.8rem;">
+            <div style="color:#7ec8e3;font-weight:700;font-size:.95rem;">Texto extraído pelo OCR (copie e envie se algo estiver errado)</div>
+            <textarea readonly style="flex:1;min-height:300px;background:#050e1a;color:#cde8f5;border:1px solid #2a5a8a;border-radius:6px;padding:.6rem;font-family:monospace;font-size:.78rem;white-space:pre;">${(window._ultimoOcrTrienio||'').replace(/[<>&]/g, c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</textarea>
+            <div style="display:flex;gap:.6rem;justify-content:flex-end;">
+              <button onclick="navigator.clipboard.writeText(window._ultimoOcrTrienio||''); this.textContent='Copiado!';" style="padding:.5rem 1rem;background:#2a5a8a;color:#fff;border:none;border-radius:6px;cursor:pointer;">Copiar texto</button>
+              <button onclick="document.getElementById('tri-debug-ocr-modal').remove();" style="padding:.5rem 1rem;background:#444;color:#fff;border:none;border-radius:6px;cursor:pointer;">Fechar</button>
+            </div>
+          </div>`;
+        document.body.appendChild(_modal);
+      };
 
       // Ir direto para etapa 3 (tabela), já preenchida com dados do PDF
       trienioIrEtapa(3);
