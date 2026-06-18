@@ -7104,13 +7104,13 @@ function trienioCarregarExistente(input) {
         mesAutomacao=String(m); anoAutomacao=String(a);
       }
 
-      const mServ = txtHeader.match(/servidor\(?a?\)?\s*:\s*([^\-–]{3,}?)\s*[-–]\s*Matr[íi]cula\s+([\d]+-[\d]+)/i);
+      const mServ = txtHeader.match(/servidor\(?a?\)?\s*:\s*([^\-–—]{3,}?)\s*[-–—]\s*Matr[íi]cula\s+([\d]+-[\d]+)/i);
       if (mServ) {
         nomeServidor = mServ[1].trim().replace(/[^A-Za-zÀ-ÿ\s]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
         matricula    = mServ[2].trim();
       }
       if (!nomeServidor) {
-        const mN2 = txtHeader.match(/servidor\(?a?\)?\s*:\s*([^\-–]{3,}?)(?:\s*[-–]\s*Matr[íi]cula|\s*$)/i);
+        const mN2 = txtHeader.match(/servidor\(?a?\)?\s*:\s*([^\-–—]{3,}?)(?:\s*[-–—]\s*Matr[íi]cula|\s*$)/i);
         if (mN2) nomeServidor = mN2[1].trim().replace(/[^A-Za-zÀ-ÿ\s]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
       }
       if (!matricula) {
@@ -7257,6 +7257,36 @@ function trienioCarregarExistente(input) {
 
         let res = resVals.length >= 1 ? resVals[0] : 0;
         const sub = resVals.length >= 2 ? resVals[1] : null;
+
+        // ── 7.5 Fallback para números "colados" sem separador decimal ──────
+        // Em algumas linhas o Tesseract não reconhece NENHUMA vírgula/ponto,
+        // produzindo ex: "142512" em vez de "1.425,12", ou "2850" em vez de
+        // "28,50". Quando isso ocorre, os passos 6/7 acima (que exigem um
+        // separador literal) retornam 0. Aqui interpretamos os últimos 2
+        // dígitos de um run numérico como centavos.
+        const _parseNaked = (s) => {
+          const d = s.replace(/\D/g, '');
+          if (d.length < 3) return 0;
+          return parseInt(d.slice(0, -2) || '0', 10) + parseInt(d.slice(-2), 10) / 100;
+        };
+        if (!venc) {
+          // Remove primeiro qualquer JUS% "colado" (dígitos seguidos de % sem separador)
+          const anteSemJusNaked = anteLimpo.replace(/\b\d{3,5}%/g, ' ');
+          const candidatosVenc = [...anteSemJusNaked.matchAll(/\b\d{3,7}\b/g)].map(m => m[0]);
+          if (candidatosVenc.length) {
+            // Prefere o candidato mais longo (vencimento tem mais dígitos que sobras de JUS%)
+            const melhor = candidatosVenc.reduce((a,b) => b.length > a.length ? b : a);
+            const v = _parseNaked(melhor);
+            if (v > 50) venc = v;
+          }
+        }
+        if (!res) {
+          const candidatosRes = [...depTri.matchAll(/\b\d{3,7}\b/g)].map(m => m[0]);
+          if (candidatosRes.length) {
+            const v = _parseNaked(candidatosRes[0]);
+            if (v > 0) res = v;
+          }
+        }
 
         // ── 8. Fallbacks mútuos venc ↔ res ──────────────────────────────
         if (!venc && res) venc = res / (pct / 100) / (dias / 30);
