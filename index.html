@@ -1619,6 +1619,308 @@ const MESES_KEY = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','
 const MESES_PT  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                    'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro','Décimo Terceiro'];
 
+/* ═══════════════════════════════════════════════════════════════════════
+   TABELA EXCEL — comportamento de edição "estilo planilha" reutilizável
+   para QUALQUER tabela editável do sistema, atual ou futura.
+
+   Recursos:
+   1. Clique em uma célula  → conteúdo fica selecionado automaticamente
+   2. Enter                 → vai para a célula de baixo (mesma coluna) e
+                               seleciona o conteúdo dela
+   3. Alça de preenchimento → arrastar o quadradinho azul no canto inferior
+                               direito da célula ativa copia o conteúdo para
+                               as células abaixo (mesma coluna), como no Excel
+   4. Botão direito numa linha → menu para inserir linha acima/abaixo ou
+                               excluir a linha, com "Desfazer" (Ctrl+Z também
+                               funciona enquanto o foco estiver na tabela)
+   5. Disponível para todos os usuários, sem qualquer checagem de permissão.
+
+   COMO USAR EM UMA TABELA NOVA (atual ou futura):
+   Depois de inserir o HTML da tabela no DOM (via innerHTML), chame:
+
+       TabelaExcel.ativar(elementoOuSeletor);
+
+   Se a tabela mantém um array de dados próprio (ex: _TRI.linhas) que precisa
+   ficar sincronizado quando uma linha é inserida/excluída manualmente, passe
+   os hooks de sincronização:
+
+       TabelaExcel.ativar(elementoOuSeletor, {
+         aoAdicionarLinha: (tr, indice) => { ...inserir no array... },
+         aoRemoverLinha:   (indice)     => { ...remover do array... }
+       });
+
+   IMPORTANTE: chame TabelaExcel.ativar(...) toda vez que a tabela for
+   (re)gerada via innerHTML — a ativação anexa os comportamentos às células
+   que existem no DOM no momento da chamada. Chamar de novo em células já
+   ativadas não tem efeito (idempotente, seguro chamar sempre).
+   ═══════════════════════════════════════════════════════════════════════ */
+const TabelaExcel = (() => {
+
+  let _handle = null;          // elemento visual da alça de preenchimento
+  let _cellAtiva = null;       // célula com foco atual (origem do preenchimento)
+  let _arrastando = false;
+  let _origemDrag = null;
+  let _tabelaDrag = null;
+  let _celulasDestacadas = [];
+  const _undoStacks = new WeakMap(); // <table> → array de ações desfazíveis
+
+  function _celulaPai(el) {
+    // Cobre tanto <td contenteditable> direto quanto <span contenteditable>
+    // aninhado dentro de um <td> (ex.: linha dupla de Novembro/2017).
+    return el.closest('td,th') || el;
+  }
+
+  function _selecionarConteudo(el) {
+    if (!el) return;
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') { el.select(); return; }
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  function _ehEditavelDireto(el) {
+    return !!(el && el.getAttribute && el.getAttribute('contenteditable') === 'true');
+  }
+
+  // ── Navegação por Enter: comita a edição (blur) e vai para a célula de baixo ──
+  function _navegarEnter(cellFocada) {
+    const td = _celulaPai(cellFocada);
+    const tr = td.closest('tr');
+    const tbody = tr && tr.parentElement;
+    if (!tbody) { cellFocada.blur(); return; }
+
+    const rowIdx = Array.from(tbody.children).indexOf(tr);
+    const colIdx = Array.from(tr.children).indexOf(td);
+
+    // Comita a edição. Algumas tabelas (ex: Triênio) reconstroem TODO o
+    // conteúdo da tbody dentro do onblur (tbody.innerHTML = ...). Por isso
+    // capturamos `tbody` (que continua sendo o MESMO nó, só seus filhos
+    // são substituídos) ANTES do blur, e releitura os filhos DEPOIS.
+    cellFocada.blur();
+
+    let idx = rowIdx + 1;
+    while (idx < tbody.children.length) {
+      const proxTr = tbody.children[idx];
+      const proxTd = proxTr && proxTr.children[colIdx];
+      if (proxTd) {
+        const alvo = _ehEditavelDireto(proxTd) ? proxTd : proxTd.querySelector('[contenteditable="true"]');
+        if (alvo) { alvo.focus(); _selecionarConteudo(alvo); return; }
+      }
+      idx++;
+    }
+    // Não há mais células editáveis abaixo nesta coluna — não faz nada.
+  }
+
+  // ── Alça de preenchimento (fill handle) ──
+  function _criarHandle() {
+    if (_handle) return _handle;
+    _handle = document.createElement('div');
+    _handle.title = 'Arraste para copiar o conteúdo para as células abaixo';
+    _handle.style.cssText = `
+      position:absolute; width:9px; height:9px;
+      background:#22d3ee; border:1px solid #0e7490; border-radius:2px;
+      cursor:crosshair; z-index:99999; display:none;
+    `;
+    document.body.appendChild(_handle);
+    _handle.addEventListener('mousedown', _iniciarArrasto);
+    return _handle;
+  }
+
+  function _posicionarHandle(cell) {
+    const r = cell.getBoundingClientRect();
+    _handle.style.left = (window.scrollX + r.right - 5) + 'px';
+    _handle.style.top  = (window.scrollY + r.bottom - 5) + 'px';
+    _handle.style.display = 'block';
+  }
+
+  function _esconderHandle() { if (_handle) _handle.style.display = 'none'; }
+
+  function _iniciarArrasto(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!_cellAtiva) return;
+    _arrastando = true;
+    _origemDrag = _celulaPai(_cellAtiva);
+    _tabelaDrag = _origemDrag.closest('table');
+    document.addEventListener('mousemove', _duranteArrasto);
+    document.addEventListener('mouseup', _finalizarArrasto);
+  }
+
+  function _limparDestaque() {
+    _celulasDestacadas.forEach(c => c.style.outline = '');
+    _celulasDestacadas = [];
+  }
+
+  function _duranteArrasto(e) {
+    if (!_arrastando) return;
+    const elAlvo = document.elementFromPoint(e.clientX, e.clientY);
+    const tdAlvo = elAlvo && elAlvo.closest('td');
+    _limparDestaque();
+    if (!tdAlvo || tdAlvo.closest('table') !== _tabelaDrag) return;
+    const trOrigem = _origemDrag.closest('tr');
+    const trAlvo   = tdAlvo.closest('tr');
+    if (!trOrigem || !trAlvo) return;
+    const tbody = trOrigem.parentElement;
+    if (tdAlvo.closest('tbody') !== tbody) return;
+    const colOrigem = Array.from(trOrigem.children).indexOf(_origemDrag);
+    const colAlvo   = Array.from(trAlvo.children).indexOf(tdAlvo);
+    if (colAlvo !== colOrigem) return; // só permite arrastar dentro da mesma coluna
+    const idxOrigem = Array.from(tbody.children).indexOf(trOrigem);
+    const idxAlvo   = Array.from(tbody.children).indexOf(trAlvo);
+    if (idxAlvo <= idxOrigem) return; // só arrasta para baixo
+    for (let i = idxOrigem + 1; i <= idxAlvo; i++) {
+      const tr = tbody.children[i];
+      const td = tr && tr.children[colOrigem];
+      if (td) { td.style.outline = '2px solid #22d3ee'; _celulasDestacadas.push(td); }
+    }
+  }
+
+  function _finalizarArrasto() {
+    if (!_arrastando) return;
+    _arrastando = false;
+    document.removeEventListener('mousemove', _duranteArrasto);
+    document.removeEventListener('mouseup', _finalizarArrasto);
+    const origemEditavel = _ehEditavelDireto(_origemDrag) ? _origemDrag : _origemDrag.querySelector('[contenteditable="true"]');
+    const conteudoOrigem = origemEditavel ? origemEditavel.innerHTML : '';
+    _celulasDestacadas.forEach(td => {
+      const alvo = _ehEditavelDireto(td) ? td : td.querySelector('[contenteditable="true"]');
+      if (alvo) {
+        alvo.innerHTML = conteudoOrigem;
+        alvo.dispatchEvent(new Event('blur', { bubbles: true }));
+      }
+    });
+    _limparDestaque();
+  }
+
+  // ── Inserir / remover linha, com pilha de desfazer por tabela ──
+  function _pilhaDe(tabela) {
+    if (!_undoStacks.has(tabela)) _undoStacks.set(tabela, []);
+    return _undoStacks.get(tabela);
+  }
+
+  function _inserirLinha(trReferencia, posicao, opcoes) {
+    const tbody = trReferencia.parentElement;
+    const idxRef = Array.from(tbody.children).indexOf(trReferencia);
+    const novaTr = trReferencia.cloneNode(true);
+    novaTr.querySelectorAll('[contenteditable="true"]').forEach(c => { c.textContent = ''; delete c.dataset.excelAtivado; });
+    const idxInsercao = posicao === 'acima' ? idxRef : idxRef + 1;
+    tbody.insertBefore(novaTr, tbody.children[idxInsercao] || null);
+    const tabela = tbody.closest('table');
+    _pilhaDe(tabela).push({ tipo: 'add', tr: novaTr, tbody });
+    _ativarCelulas(novaTr);
+    if (opcoes && opcoes.aoAdicionarLinha) opcoes.aoAdicionarLinha(novaTr, idxInsercao);
+  }
+
+  function _removerLinha(tr, opcoes) {
+    const tbody = tr.parentElement;
+    const idx = Array.from(tbody.children).indexOf(tr);
+    const proximoIrmao = tr.nextElementSibling;
+    tr.remove();
+    const tabela = tbody.closest('table');
+    _pilhaDe(tabela).push({ tipo: 'remove', tr, tbody, proximoIrmao, idx });
+    if (opcoes && opcoes.aoRemoverLinha) opcoes.aoRemoverLinha(idx);
+  }
+
+  function _desfazer(tabela, opcoes) {
+    const pilha = _pilhaDe(tabela);
+    const acao = pilha.pop();
+    if (!acao) return;
+    if (acao.tipo === 'add') {
+      acao.tr.remove();
+    } else if (acao.tipo === 'remove') {
+      acao.tbody.insertBefore(acao.tr, acao.proximoIrmao && acao.tbody.contains(acao.proximoIrmao) ? acao.proximoIrmao : null);
+      _ativarCelulas(acao.tr);
+    }
+  }
+
+  // ── Menu de contexto (botão direito numa linha) ──
+  function _criarMenu(tr, x, y, opcoes) {
+    const antigo = document.getElementById('tabela-excel-menu');
+    if (antigo) antigo.remove();
+    const menu = document.createElement('div');
+    menu.id = 'tabela-excel-menu';
+    menu.style.cssText = `
+      position:fixed; left:${x}px; top:${y}px; z-index:99999;
+      background:#0d1b2a; border:1px solid #2a5a8a; border-radius:8px;
+      padding:.3rem; font-size:.82rem; min-width:210px;
+      box-shadow:0 6px 20px rgba(0,0,0,.4); font-family:inherit;
+    `;
+    const item = (label, fn) => {
+      const div = document.createElement('div');
+      div.textContent = label;
+      div.style.cssText = 'padding:.5rem .7rem;color:#cde8f5;cursor:pointer;border-radius:5px;';
+      div.onmouseenter = () => div.style.background = '#1e3a5f';
+      div.onmouseleave = () => div.style.background = '';
+      div.onclick = () => { fn(); menu.remove(); };
+      menu.appendChild(div);
+    };
+    item('➕ Inserir linha acima',  () => _inserirLinha(tr, 'acima', opcoes));
+    item('➕ Inserir linha abaixo', () => _inserirLinha(tr, 'abaixo', opcoes));
+    item('🗑 Excluir esta linha',   () => _removerLinha(tr, opcoes));
+    item('↩ Desfazer última ação', () => _desfazer(tr.closest('table'), opcoes));
+    document.body.appendChild(menu);
+    const fechar = (ev) => {
+      if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener('mousedown', fechar); }
+    };
+    setTimeout(() => document.addEventListener('mousedown', fechar), 0);
+  }
+
+  // ── Ativação de uma célula individual (idempotente) ──
+  function _ativarCelula(cell) {
+    if (cell.dataset.excelAtivado) return;
+    cell.dataset.excelAtivado = '1';
+
+    cell.addEventListener('focus', () => {
+      _cellAtiva = cell;
+      _criarHandle();
+      _posicionarHandle(_celulaPai(cell));
+    });
+    cell.addEventListener('click', () => _selecionarConteudo(cell));
+    cell.addEventListener('blur', () => { if (!_arrastando) _esconderHandle(); });
+    cell.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); _navegarEnter(cell); }
+    });
+  }
+
+  function _ativarCelulas(escopo) {
+    const lista = (escopo.matches && escopo.matches('[contenteditable="true"]'))
+      ? [escopo]
+      : Array.from(escopo.querySelectorAll('[contenteditable="true"]'));
+    lista.forEach(_ativarCelula);
+  }
+
+  // ── API pública ──
+  function ativar(tabelaOuSeletor, opcoes = {}) {
+    const raiz = typeof tabelaOuSeletor === 'string'
+      ? document.querySelector(tabelaOuSeletor)
+      : tabelaOuSeletor;
+    if (!raiz) return;
+
+    _ativarCelulas(raiz);
+
+    if (!raiz.dataset.excelMenuAtivado) {
+      raiz.dataset.excelMenuAtivado = '1';
+      raiz.addEventListener('contextmenu', (e) => {
+        const tr = e.target.closest('tr');
+        if (!tr || !tr.parentElement || tr.parentElement.tagName !== 'TBODY') return;
+        e.preventDefault();
+        _criarMenu(tr, e.clientX, e.clientY, opcoes);
+      });
+      raiz.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+          e.preventDefault();
+          const tabelaFoco = e.target.closest('table');
+          if (tabelaFoco) _desfazer(tabelaFoco, opcoes);
+        }
+      });
+    }
+  }
+
+  return { ativar };
+})();
+
 /* ─── alíquotas históricas ─── */
 function aliqHistorica(ano, mi) {
   if (ano <= 2000) return 5;
@@ -3516,6 +3818,7 @@ function renderTabelaRevisao() {
 
   html += '</div>';
   wrap.innerHTML = html;
+  TabelaExcel.ativar(wrap);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -3999,6 +4302,7 @@ function gerarCertidao() {
   </div>`;
 
   document.getElementById('certidao-editavel').innerHTML = html;
+  TabelaExcel.ativar(document.getElementById('certidao-editavel'));
   irParaEtapa(4);
 }
 
@@ -6648,6 +6952,14 @@ function trienioGerarTabela() {
     <td style="text-align:right;font-weight:700;color:var(--accent2);">${fmtMoeda(totalSub)}</td>
   </tr>`;
   tbody.innerHTML = html;
+  TabelaExcel.ativar(tbody, {
+    aoAdicionarLinha: (tr, idx) => {
+      // Sincroniza a nova linha com o array de dados do Triênio
+      _TRI.linhas.splice(idx, 0, { ano:'', mes:'', mesNum:0, decimo:false, ferias:false,
+        dias:0, jus:0, vencimento:0, percentual:0, resultado:0, override:undefined });
+    },
+    aoRemoverLinha: (idx) => { _TRI.linhas.splice(idx, 1); }
+  });
 
   // Meses englobados (excluir Férias da contagem de meses únicos)
   const mesesUnicos = new Set(_TRI.linhas.filter(l=>!l.decimo&&!l.ferias).map(l=>`${l.ano}-${l.mesNum}`));
