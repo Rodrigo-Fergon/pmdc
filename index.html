@@ -96,7 +96,7 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;
 .badge-ok{border:1px solid var(--accent2);color:var(--accent2);}
 .badge-err{border:1px solid var(--red);color:var(--red);}
 
-.alert{padding:.7rem 1rem;border-radius:8px;font-size:.85rem;margin-bottom:1rem;display:flex;gap:.6rem;align-items:flex-start;}
+.alert{padding:.7rem 1rem;border-radius:8px;font-size:.85rem;margin-bottom:1rem;line-height:1.5;}
 .alert-info{background:rgba(0,210,255,0.06);border:1px solid rgba(0,210,255,0.25);color:var(--accent);}
 .alert-warn{background:rgba(255,184,0,0.06);border:1px solid rgba(255,184,0,0.25);color:var(--accent3);}
 .alert-ok{background:rgba(0,255,200,0.06);border:1px solid rgba(0,255,200,0.25);color:var(--accent2);}
@@ -1483,14 +1483,14 @@ table.ctb td[contenteditable="true"]:focus{background:#fffbe6;outline:1px solid 
       <div class="card">
         <div class="card-title">👤 Dados do Servidor</div>
         <div class="dados-grid">
-          <div class="field full"><label>Nome Completo</label><input type="text" id="f-nome" placeholder="Nome do servidor"></div>
+          <div class="field full"><label>Nome Completo</label><input type="text" id="f-nome" placeholder="Nome do servidor" style="text-transform:uppercase;" oninput="maskApenasLetrasInput(this)"></div>
           <div class="field"><label>Matrícula</label><input type="text" id="f-mat" placeholder="00000-0" maxlength="8" oninput="maskMatriculaInput(this)"></div>
-          <div class="field"><label>CPF</label><input type="text" id="f-cpf" placeholder="000.000.000-00"></div>
-          <div class="field"><label>PIS/PASEP</label><input type="text" id="f-pis"></div>
-          <div class="field"><label>Data de Nascimento</label><input type="text" id="f-nasc" placeholder="dd/mm/aaaa"></div>
-          <div class="field full"><label>Nome da Mãe</label><input type="text" id="f-mae" style="text-transform:uppercase;"></div>
-          <div class="field full"><label>Cargo / Função</label><input type="text" id="f-cargo"></div>
-          <div class="field full"><label>N.º da Certidão (CTC)</label><input type="text" id="f-ctc" placeholder="ex: 001/2025"></div>
+          <div class="field"><label>CPF</label><input type="text" id="f-cpf" placeholder="000.000.000-00" maxlength="14" oninput="maskCpfInput(this)"></div>
+          <div class="field"><label>PIS/PASEP</label><input type="text" id="f-pis" placeholder="000.00000.00-0" maxlength="15" oninput="maskPisInput(this)"></div>
+          <div class="field"><label>Data de Nascimento</label><input type="text" id="f-nasc" placeholder="dd/mm/aaaa" maxlength="10" oninput="maskDataInput(this)"></div>
+          <div class="field full"><label>Nome da Mãe</label><input type="text" id="f-mae" style="text-transform:uppercase;" oninput="maskApenasLetrasInput(this)"></div>
+          <div class="field full"><label>Cargo / Função</label><input type="text" id="f-cargo" style="text-transform:uppercase;" oninput="maskCargoCertidaoInput(this)"></div>
+          <div class="field full"><label>N.º da Certidão (CTC)</label><input type="text" id="f-ctc" placeholder="ex: 001/2025" style="text-transform:uppercase;" oninput="maskCargoCertidaoInput(this)"></div>
         </div>
       </div>
       <div class="card">
@@ -1536,9 +1536,11 @@ table.ctb td[contenteditable="true"]:focus{background:#fffbe6;outline:1px solid 
   <div class="modal" style="max-width:520px;">
     <h3>&#x1F501; Redefinir Referência Proporcional</h3>
     <p>
-      Por padrão, o sistema usa o <strong>código 164 de M3</strong> como base para calcular os três
-      primeiros meses proporcionalmente. Use este painel para substituir essa referência por um
-      mês/ano e valor específicos.
+      O sistema calcula os <strong>três primeiros meses</strong> de contribuição (M1, M2 e M3)
+      de forma proporcional aos dias, usando o valor de M3 como referência. Por padrão, esse
+      valor vem do <strong>código 164</strong> da ficha financeira (Situação B) — mas em meses
+      sem ficha financeira (Situação A), você pode informá-lo manualmente. Use este painel para
+      escolher o mês/ano de referência e o valor.
     </p>
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:1.2rem;font-size:.82rem;color:var(--text2);line-height:1.7;">
       <strong style="color:var(--accent);display:block;margin-bottom:.4rem;">Referência atual:</strong>
@@ -1563,8 +1565,9 @@ table.ctb td[contenteditable="true"]:focus{background:#fffbe6;outline:1px solid 
           placeholder="ex: 2008">
       </div>
     </div>
+    <div id="rebase-contexto-sit" style="margin-bottom:.9rem;font-size:.78rem;padding:.55rem .8rem;border-radius:6px;display:none;"></div>
     <div style="margin-bottom:1.2rem;">
-      <label style="display:block;font-size:.72rem;color:var(--text3);font-family:'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Valor do código 164 deste mês (R$)</label>
+      <label id="rebase-valor-label" style="display:block;font-size:.72rem;color:var(--text3);font-family:'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Valor de referência deste mês (R$)</label>
       <input type="text" id="rebase-valor" inputmode="decimal"
         style="width:100%;padding:.5rem .8rem;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.88rem;"
         placeholder="ex: 53,58">
@@ -3608,7 +3611,8 @@ function preencherEtapa3() {
   /* Exibir aviso informativo quando a admissão não foi no 1º dia do mês
      (os 3 primeiros meses tiveram valores calculados proporcionalmente) */
   const admStr = document.getElementById('f-admissao')?.value
-              || (S.dados?.admissao ? S.dados.admissao.split('/').reverse().join('-') : null);
+              || (S.dados?.admissao ? S.dados.admissao.split('/').reverse().join('-') : null)
+              || (S.periodoIni ? S.periodoIni.toISOString().slice(0,10) : null);
   const avisoEl = null; // removed
   if (admStr && avisoEl) {
     const dataAdm = new Date(admStr + 'T12:00:00');
@@ -3830,10 +3834,37 @@ function renderTabelaRevisao() {
 /* Estado do rebase manual (null = usa a detecção automática) */
 S._rebaseManual = null; /* { mesIdx, ano, valor } quando definido */
 
+function atualizarContextoSituacaoRebase() {
+  const el = document.getElementById('rebase-contexto-sit');
+  if (!el) return;
+  const mesIdx = parseInt(document.getElementById('rebase-mes').value);
+  const ano    = parseInt(document.getElementById('rebase-ano').value);
+  if (isNaN(mesIdx) || isNaN(ano)) { el.style.display = 'none'; return; }
+
+  /* Situação B começa em Fevereiro/1997 (corte usado em toda a aplicação) */
+  const ehSituacaoB = (ano > 1997) || (ano === 1997 && mesIdx >= 1);
+
+  el.style.display = 'block';
+  if (ehSituacaoB) {
+    el.style.background = 'rgba(34,211,238,.08)';
+    el.style.color = 'var(--accent2)';
+    el.style.border = '1px solid rgba(34,211,238,.25)';
+    el.innerHTML = '&#x1F4C2; Este mês está na <strong>Situação B</strong> — normalmente o valor viria do código 164 '
+      + 'da ficha financeira. Aqui você está substituindo manualmente esse valor.';
+  } else {
+    el.style.background = 'rgba(255,184,0,.08)';
+    el.style.color = 'var(--accent3)';
+    el.style.border = '1px solid rgba(255,184,0,.25)';
+    el.innerHTML = '&#x1F4DC; Este mês está na <strong>Situação A</strong> — não há ficha financeira nesse período. '
+      + 'Informe abaixo o valor que este mês deveria ter, para servir de base ao cálculo proporcional.';
+  }
+}
+
 function abrirRebase() {
   /* Pré-preencher com a referência atual */
   const admStr = document.getElementById('f-admissao')?.value
-              || (S.dados?.admissao ? S.dados.admissao.split('/').reverse().join('-') : null);
+              || (S.dados?.admissao ? S.dados.admissao.split('/').reverse().join('-') : null)
+              || (S.periodoIni ? S.periodoIni.toISOString().slice(0,10) : null);
   let mesIdxDef = 10, anoDef = new Date().getFullYear(); /* default: novembro/ano atual */
   if (admStr) {
     const d = new Date(admStr + 'T12:00:00');
@@ -3866,8 +3897,10 @@ function abrirRebase() {
   /* Listener de preview em tempo real */
   const inpValor = document.getElementById('rebase-valor');
   inpValor.oninput = atualizarPreviewRebase;
-  document.getElementById('rebase-mes').onchange = atualizarPreviewRebase;
-  document.getElementById('rebase-ano').onchange = atualizarPreviewRebase;
+  document.getElementById('rebase-mes').onchange = () => { atualizarPreviewRebase(); atualizarContextoSituacaoRebase(); };
+  document.getElementById('rebase-ano').onchange  = () => { atualizarPreviewRebase(); atualizarContextoSituacaoRebase(); };
+  document.getElementById('rebase-ano').oninput   = atualizarContextoSituacaoRebase;
+  atualizarContextoSituacaoRebase();
 
   document.getElementById('modal-rebase').classList.add('open');
 }
@@ -3878,7 +3911,8 @@ function fecharRebase() {
 
 function atualizarPreviewRebase() {
   const admStr = document.getElementById('f-admissao')?.value
-              || (S.dados?.admissao ? S.dados.admissao.split('/').reverse().join('-') : null);
+              || (S.dados?.admissao ? S.dados.admissao.split('/').reverse().join('-') : null)
+              || (S.periodoIni ? S.periodoIni.toISOString().slice(0,10) : null);
   if (!admStr) return;
   const dataAdm  = new Date(admStr + 'T12:00:00');
   const diaAdm   = dataAdm.getDate();
@@ -3913,7 +3947,8 @@ function atualizarPreviewRebase() {
 
 function confirmarRebase() {
   const admStr = document.getElementById('f-admissao')?.value
-              || (S.dados?.admissao ? S.dados.admissao.split('/').reverse().join('-') : null);
+              || (S.dados?.admissao ? S.dados.admissao.split('/').reverse().join('-') : null)
+              || (S.periodoIni ? S.periodoIni.toISOString().slice(0,10) : null);
   if (!admStr) { alert('Informe a data de admissão antes.'); return; }
 
   const mesIdx   = parseInt(document.getElementById('rebase-mes').value);
@@ -4155,7 +4190,9 @@ function gerarCertidao() {
     if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return str;
     try { return new Date(str + 'T12:00:00').toLocaleDateString('pt-BR'); } catch(e){ return str; }
   };
-  const admDisplay = fmtDateStr(S.dados.admissao || '');
+  // Quando só há Situação A, não há ficha financeira para extrair a admissão —
+  // nesse caso, exibir a Data Inicial do Período informada na Etapa "1-Período".
+  const admDisplay = fmtDateStr(S.dados.admissao || (S.periodoIni ? S.periodoIni.toISOString().slice(0,10) : ''));
   const exoDisplay = fmtDateStr(S.dados.demissao || '');
 
   const periodoTexto = S.periodoIni.toLocaleDateString('pt-BR') + ' A ' + S.periodoFim.toLocaleDateString('pt-BR');
@@ -4443,7 +4480,9 @@ function exportarXLS() {
     try { return new Date(str + 'T12:00:00').toLocaleDateString('pt-BR'); } catch(e){ return str; }
   };
 
-  const admDisplay = fmtDateStr(S.dados.admissao || '');
+  // Quando só há Situação A, não há ficha financeira para extrair a admissão —
+  // nesse caso, exibir a Data Inicial do Período informada na Etapa "1-Período".
+  const admDisplay = fmtDateStr(S.dados.admissao || (S.periodoIni ? S.periodoIni.toISOString().slice(0,10) : ''));
   const exoDisplay = fmtDateStr(S.dados.demissao || '');
   const hoje       = new Date().toLocaleDateString('pt-BR');
   const periodoTexto = S.periodoIni && S.periodoFim
@@ -5229,6 +5268,70 @@ function formatMatricula(m) {
   return v;
 }
 function normMatricula(m) { return m.replace(/[^0-9]/g, ''); }
+
+/* ══════════════════════════════════════════════════════════
+   MÁSCARAS DOS CAMPOS DO CTC (Etapa 3 — Dados do Servidor)
+══════════════════════════════════════════════════════════ */
+
+/* Só letras (com acentos) e espaços, sempre em caixa alta.
+   Usado em: Nome Completo (f-nome), Nome da Mãe (f-mae). */
+function maskApenasLetrasInput(el) {
+  const cursor = el.selectionStart;
+  const antes  = el.value.length;
+  el.value = el.value.replace(/[^A-Za-zÀ-ÿ\s]/g, '').toUpperCase();
+  const depois = el.value.length;
+  if (cursor !== null) {
+    const nova = Math.max(0, cursor - (antes - depois));
+    el.setSelectionRange(nova, nova);
+  }
+}
+
+/* CPF: só números, máscara 000.000.000-00 */
+function maskCpfInput(el) {
+  let v = el.value.replace(/\D/g, '');
+  if (v.length > 11) v = v.slice(0, 11);
+  let out = v;
+  if (v.length > 9)      out = `${v.slice(0,3)}.${v.slice(3,6)}.${v.slice(6,9)}-${v.slice(9)}`;
+  else if (v.length > 6) out = `${v.slice(0,3)}.${v.slice(3,6)}.${v.slice(6)}`;
+  else if (v.length > 3) out = `${v.slice(0,3)}.${v.slice(3)}`;
+  el.value = out;
+}
+
+/* PIS/PASEP: só números, máscara 000.00000.00-0 (3+5+2+1 = 11 dígitos) */
+function maskPisInput(el) {
+  let v = el.value.replace(/\D/g, '');
+  if (v.length > 11) v = v.slice(0, 11);
+  let out = v;
+  if (v.length > 10)      out = `${v.slice(0,3)}.${v.slice(3,8)}.${v.slice(8,10)}-${v.slice(10)}`;
+  else if (v.length > 8)  out = `${v.slice(0,3)}.${v.slice(3,8)}.${v.slice(8)}`;
+  else if (v.length > 3)  out = `${v.slice(0,3)}.${v.slice(3)}`;
+  el.value = out;
+}
+
+/* Data: só números, máscara DD/MM/AAAA */
+function maskDataInput(el) {
+  let v = el.value.replace(/\D/g, '');
+  if (v.length > 8) v = v.slice(0, 8);
+  let out = v;
+  if (v.length > 4)      out = `${v.slice(0,2)}/${v.slice(2,4)}/${v.slice(4)}`;
+  else if (v.length > 2) out = `${v.slice(0,2)}/${v.slice(2)}`;
+  el.value = out;
+}
+
+/* Letras e números (com espaços e pontuação comum de cargos/certidões: / - . , ( )),
+   letras sempre em caixa alta. Usado em: Cargo/Função (f-cargo), Nº da Certidão (f-ctc). */
+function maskCargoCertidaoInput(el) {
+  const cursor = el.selectionStart;
+  const antes  = el.value.length;
+  el.value = el.value
+    .replace(/[^A-Za-z0-9À-ÿ\s\/\-.,()]/g, '')
+    .replace(/[a-zà-ÿ]/g, c => c.toUpperCase());
+  const depois = el.value.length;
+  if (cursor !== null) {
+    const nova = Math.max(0, cursor - (antes - depois));
+    el.setSelectionRange(nova, nova);
+  }
+}
 
 /* ══════════════════════════════════════════════════════════
    SISTEMA DE PERMISSÕES GRANULARES POR MÓDULO
