@@ -4088,7 +4088,14 @@ function resetarRebase() {
 function _aplicarProporcionalComRef(admStr, refVal, m3Override) {
   const dataAdm  = new Date(admStr + 'T12:00:00');
   const diaAdm   = dataAdm.getDate();
-  if (diaAdm === 1) return;
+  /* Nota: NÃO retornar quando diaAdm===1 aqui. Essa verificação já existe em
+     aplicarProporcionalIni() para o caminho AUTOMÁTICO (faz sentido lá: dia 1
+     = mês completo, nada a calcular). Mas esta função também é chamada pelo
+     caminho MANUAL (botão "Redefinir Referência Proporcional"), onde o usuário
+     pode estar usando "Data Inicial do Período" como base (Situação A, sem
+     ficha financeira) — e esse período frequentemente começa no dia 1 mesmo
+     quando o usuário quer, sim, calcular M1/M2/M3 manualmente. Bloquear aqui
+     fazia o botão "funcionar" (mostrava sucesso) sem realmente escrever nada. */
 
   const diasM1    = (30 - diaAdm) + 1;
   const diasM2    = 30;
