@@ -170,10 +170,14 @@ table.rev .vc-col{color:var(--accent2);font-weight:600;}
 .cert-ficha td{padding:3px 6px;vertical-align:middle;font-size:11pt;border:1px solid #ccc;}
 .cert-ficha td.lb{background:#f0f0f0;color:#222;white-space:nowrap;font-size:10.5pt;}
 .cert-ficha td.vl{font-weight:bold;}
-table.ctb{width:100%;border-collapse:collapse;font-size:10pt;margin-bottom:.5rem;page-break-inside:avoid;}
+table.ctb{width:100%;border-collapse:collapse;font-size:10pt;margin-bottom:.5rem;table-layout:fixed;}
+table.ctb th.mes-h{width:16%;}
+table.ctb th.ano-h,table.ctb th.val-h{width:14%;}
 table.ctb th.ano-h{background:#bbb;border:1px solid #888;padding:3px 5px;text-align:center;font-size:10.5pt;text-transform:uppercase;font-weight:bold;}
 table.ctb th.val-h{background:#d4d4d4;border:1px solid #888;padding:3px 5px;text-align:center;font-size:10pt;font-weight:bold;}
-table.ctb th.mes-h{background:#d4d4d4;border:1px solid #888;padding:3px 5px;text-align:left;min-width:90px;font-weight:bold;}
+table.ctb th.mes-h{background:#d4d4d4;border:1px solid #888;padding:3px 5px;text-align:left;font-weight:bold;}
+/* Colunas de preenchimento (anos "vazios" para manter a largura das colunas igual em todos os blocos) */
+table.ctb th.ano-h-pad,table.ctb th.val-h-pad{background:#e8e8e8;border:1px solid #ccc;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 table.ctb td{border:1px solid #ccc;padding:2px 5px;}
 table.ctb td.mes-c{text-align:left;}
 table.ctb td.val-c{text-align:right;}
@@ -253,9 +257,16 @@ table.ctb td[contenteditable="true"]:focus{background:#fffbe6;outline:1px solid 
   /* Cabeçalho da certidão: usar flex para evitar espaço excessivo do position:absolute */
   .cert-hdr{min-height:unset!important;position:static!important;}
   .cert-hdr img[alt="Brasão"]{position:static!important;float:left!important;margin-right:8px!important;}
-  /* Tabela + assinatura: tentar manter na mesma página quando couber */
-  table.ctb{page-break-inside:auto;}
-  table.ctb + .cert-assin{page-break-before:avoid!important;break-before:avoid!important;}
+  /* Nenhum ano/bloco de tabela pode ser fragmentado entre páginas — se não couber
+     inteiro na página atual, a tabela inteira vai para a próxima página (ver
+     também a paginação manual aplicada por ajustarPaginacaoCTC()). */
+  table.ctb{page-break-inside:avoid!important;break-inside:avoid!important;}
+
+  /* Remover o fundo decorativo (grade + scanline) do tema do sistema — esses
+     pseudo-elementos não são filhos de <body> e por isso não eram ocultados
+     pela regra "body > *{display:none}", aparecendo como linhas cinzas no
+     papel em branco abaixo do bloco de assinatura. */
+  body::before,body::after{display:none!important;content:none!important;background:none!important;}
 }
 #print-area{display:none;background:#fff;}
 .hidden{display:none!important;}
@@ -4330,16 +4341,20 @@ function gerarCertidao() {
   const anos   = []; for (let a=anoIni;a<=anoFim;a++) anos.push(a);
 
   /* ── Tabela de contribuições — 6 anos por bloco, só coluna VALOR ── */
+  const MAXCOLS_ANO = 6; /* mesmo valor usado no agrupamento "grupos" abaixo */
   function blocoTabela(bloco) {
     const nA = bloco.length;
+    const padCols = MAXCOLS_ANO - nA; /* colunas "vazias" para manter a largura igual entre blocos */
     let h = `<table class="ctb"><thead>`;
-    /* Linha 1: MÊS | ANO ANO ANO... */
+    /* Linha 1: MÊS | ANO ANO ANO... (+ colunas cinzas de preenchimento, se houver) */
     h += `<tr><th class="mes-h" rowspan="2">MÊS</th>`;
     bloco.forEach(a => h += `<th class="ano-h">ANO: ${a}</th>`);
+    for (let p=0; p<padCols; p++) h += `<th class="ano-h ano-h-pad"></th>`;
     h += `</tr>`;
-    /* Linha 2: sub-cabeçalho VALOR */
+    /* Linha 2: sub-cabeçalho VALOR (+ preenchimento) */
     h += `<tr>`;
     bloco.forEach(() => h += `<th class="val-h">VALOR</th>`);
+    for (let p=0; p<padCols; p++) h += `<th class="val-h val-h-pad"></th>`;
     h += `</tr></thead><tbody>`;
 
     MESES_KEY.forEach((m, mi) => {
@@ -4379,6 +4394,7 @@ function gerarCertidao() {
         if (!vcExib && c?.desc > 0 && c?.aliq > 0) vcExib = calcVC(c.desc, c.aliq);
         h += `<td class="val-c" contenteditable="true" data-uid="${uid}" data-campo="vc" onblur="editarCtbVC(this)">${vcExib?fmtBR(vcExib):'—'}</td>`;
       });
+      for (let p=0; p<padCols; p++) h += `<td class="val-dash val-pad"></td>`;
       h += `</tr>`;
     });
 
@@ -4387,7 +4403,7 @@ function gerarCertidao() {
   }
 
   const grupos=[];
-  for(let i=0;i<anos.length;i+=6) grupos.push(anos.slice(i,i+6));
+  for(let i=0;i<anos.length;i+=MAXCOLS_ANO) grupos.push(anos.slice(i,i+MAXCOLS_ANO));
 
   let html=`
   <div style="position:relative;margin-bottom:.4rem;">
@@ -4465,6 +4481,107 @@ function gerarCertidao() {
   document.getElementById('certidao-editavel').innerHTML = html;
   TabelaExcel.ativar(document.getElementById('certidao-editavel'));
   irParaEtapa(4);
+  ajustarPaginacaoCTC();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PAGINAÇÃO MANUAL DO LAYOUT IMPRESSO/PDF DA CERTIDÃO (CTC)
+   ═══════════════════════════════════════════════════════════════
+   Garante que:
+   1) Nenhum bloco de anos (table.ctb) seja fragmentado entre páginas
+      — ou ele cabe inteiro na página atual, ou vai inteiro para a
+      próxima.
+   2) Quando uma página termina com espaço sobrando (porque o próximo
+      bloco de anos não coube), esse espaço é distribuído acima e
+      abaixo do conteúdo já colocado nessa página, centralizando-o
+      verticalmente — em vez de deixar tudo "colado" no topo.
+   3) O bloco de assinaturas (Bloco 4) segue a mesma lógica: só entra
+      na página se couber, senão vai para a página seguinte.
+   Isso é feito medindo a altura real dos elementos já renderizados
+   e comparando com a altura útil de uma página A4 (mesma margem de
+   1,4 cm usada tanto na impressão — @page — quanto no PDF salvo).
+   ═══════════════════════════════════════════════════════════════ */
+function ajustarPaginacaoCTC() {
+  const el = document.getElementById('certidao-editavel');
+  if (!el) return;
+
+  const children = Array.from(el.children);
+  const idxFicha = children.findIndex(c => c.classList && c.classList.contains('cert-ficha'));
+  const assin    = children.find(c => c.classList && c.classList.contains('cert-assin'));
+  const tabelas  = children.filter(c => c.tagName === 'TABLE' && c.classList.contains('ctb'));
+  if (idxFicha === -1 || !assin || !tabelas.length) return;
+
+  /* Blocos 1+2 (cabeçalho + ficha do servidor) — sempre fixos no topo da página 1 */
+  const preFicha = children.slice(0, idxFicha + 1);
+
+  /* Limpar ajustes de uma geração anterior (idempotência) */
+  [...tabelas, assin].forEach(node => {
+    node.style.marginTop      = '';
+    node.style.pageBreakBefore = '';
+    node.style.breakBefore     = '';
+  });
+
+  /* Altura útil de página: A4 (29,7cm) menos as margens de 1,4cm usadas
+     tanto em @page (impressão) quanto no jsPDF de salvarPDF() (margin[1.4,...]) */
+  const CM_TO_PX = 96/2.54;
+  const PAGE_H   = (29.7 - 2*1.4) * CM_TO_PX;
+
+  const blocos = [...tabelas, assin]; /* fluem em sequência após o Bloco 2 */
+
+  /* Medir pela posição (top) de cada elemento, e não apenas por
+     getBoundingClientRect().height, porque a altura "própria" de um
+     elemento não inclui margin-top/margin-bottom — e é justamente esse
+     espaço entre os blocos (ex.: margin-bottom das tabelas de anos,
+     margin-top do bloco de assinatura) que precisa entrar na conta. */
+  const topPreFicha = preFicha[0].getBoundingClientRect().top;
+  const tops = blocos.map(b => b.getBoundingClientRect().top);
+  const preFichaH = tops[0] - topPreFicha;
+  const alturas = blocos.map((b,i) =>
+    i < blocos.length - 1 ? (tops[i+1] - tops[i]) : b.getBoundingClientRect().height
+  );
+
+  /* 1) Simular a distribuição dos blocos pelas páginas */
+  const paginas = [];
+  let paginaAtual = [];
+  let usado = preFichaH; /* página 1 já começa "gasta" pelo Bloco 1+2 */
+
+  blocos.forEach((b, i) => {
+    const h = alturas[i];
+    if (paginaAtual.length === 0) {
+      /* primeiro bloco desta página: entra sempre (não há como dividir a tabela) */
+      paginaAtual.push(i);
+      usado += h;
+    } else if (usado + h <= PAGE_H) {
+      paginaAtual.push(i);
+      usado += h;
+    } else {
+      paginas.push(paginaAtual);
+      paginaAtual = [i];
+      usado = h;
+    }
+  });
+  if (paginaAtual.length) paginas.push(paginaAtual);
+
+  /* 2) Aplicar quebras de página forçadas + centralização vertical do
+        conteúdo nas páginas que sobraram espaço (exceto a última) */
+  paginas.forEach((indices, pIdx) => {
+    const ultimaPagina = pIdx === paginas.length - 1;
+    const primeiroEl   = blocos[indices[0]];
+
+    if (pIdx > 0) {
+      primeiroEl.style.setProperty('page-break-before', 'always', 'important');
+      primeiroEl.style.setProperty('break-before', 'page', 'important');
+    }
+
+    if (!ultimaPagina) {
+      const baseUsada = (pIdx === 0) ? preFichaH : 0;
+      const somaAlturas = indices.reduce((s,i) => s + alturas[i], 0);
+      const sobra = PAGE_H - baseUsada - somaAlturas;
+      if (sobra > 4) {
+        primeiroEl.style.marginTop = (sobra/2) + 'px';
+      }
+    }
+  });
 }
 
 function editarCtb(cell) {
@@ -4500,6 +4617,7 @@ function recalcTotalCert(ano) {
 
 /* ═══ IMPRIMIR / EXPORTAR ═══ */
 function imprimirNormal() {
+  ajustarPaginacaoCTC();
   const origTitle = document.title;
   document.title = '';
   window.print();
@@ -4509,6 +4627,7 @@ function imprimirNormal() {
 function salvarPDF() {
   const el = document.getElementById('certidao-editavel');
   if (!el) return;
+  ajustarPaginacaoCTC();
 
   function _gerarPDF() {
     /* Embutir estado JSON como elemento oculto dentro da certidão
