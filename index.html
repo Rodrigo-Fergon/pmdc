@@ -3846,23 +3846,28 @@ function renderTabelaRevisao() {
       if (!isDec13 && ano === anoIni && mi < mesIni) return;
       if (!isDec13 && ano === anoFim && mi > mesFim) return;
 
-      /* Novembro 2017 — linha dupla */
+      /* Novembro 2017 — três linhas: 13 dias (cód.225/11%) + 17 dias (cód.226/14%) + total */
       if (ano === 2017 && mi === 10) {
         const n11 = S.contrib[2017]?.['nov_11'] || {desc:0,aliq:11,vc:0};
         const n14 = S.contrib[2017]?.['nov_14'] || {desc:0,aliq:14,vc:0};
         const totN = (n11.vc||0) + (n14.vc||0);
         totVC += totN;
         html += `<tr>
-          <td class="mes">Novembro <small>(11%+14%)</small></td>
-          <td style="text-align:left;font-size:.76rem;">
-            11%:&nbsp;<span contenteditable="true" data-ano="2017" data-mes="nov_11" data-campo="desc"
-              onblur="editarRevSpan(this)"
-              style="border-bottom:1px dashed rgba(0,210,255,.5);outline:none;cursor:text;padding:0 3px;">${fmtBR(n11.desc)}</span>
-            &nbsp;·&nbsp;14%:&nbsp;<span contenteditable="true" data-ano="2017" data-mes="nov_14" data-campo="desc"
-              onblur="editarRevSpan(this)"
-              style="border-bottom:1px dashed rgba(0,210,255,.5);outline:none;cursor:text;padding:0 3px;">${fmtBR(n14.desc)}</span>
-          </td>
-          <td style="text-align:center;">11+14</td>
+          <td class="mes">Novembro <small>(13 dias)</small></td>
+          <td contenteditable="true" data-ano="2017" data-mes="nov_11" data-campo="desc" onblur="editarRev(this)">${fmtBR(n11.desc)}</td>
+          <td contenteditable="true" data-ano="2017" data-mes="nov_11" data-campo="aliq" onblur="editarRev(this)">${n11.aliq!==null?n11.aliq:''}</td>
+          <td class="vc-col" id="vc-2017-nov_11">${fmtBR(n11.vc)}</td>
+        </tr>
+        <tr>
+          <td class="mes">Novembro <small>(17 dias)</small></td>
+          <td contenteditable="true" data-ano="2017" data-mes="nov_14" data-campo="desc" onblur="editarRev(this)">${fmtBR(n14.desc)}</td>
+          <td contenteditable="true" data-ano="2017" data-mes="nov_14" data-campo="aliq" onblur="editarRev(this)">${n14.aliq!==null?n14.aliq:''}</td>
+          <td class="vc-col" id="vc-2017-nov_14">${fmtBR(n14.vc)}</td>
+        </tr>
+        <tr>
+          <td class="mes">Novembro</td>
+          <td style="text-align:center;opacity:.55;">0,00</td>
+          <td style="text-align:center;opacity:.55;">0</td>
           <td class="vc-col" id="vc-2017-nov">${fmtBR(totN)}</td>
         </tr>`;
         return;
@@ -4252,7 +4257,7 @@ function editarRev(cell) {
   const {ano,mes,campo} = cell.dataset;
   const val = parseBR(cell.textContent.trim());
   if (!S.contrib[ano]) S.contrib[ano]={};
-  if (!S.contrib[ano][mes]) S.contrib[ano][mes]={desc:0,aliq:14,vc:0};
+  if (!S.contrib[ano][mes]) S.contrib[ano][mes]={desc:0,aliq:(mes==='nov_11'?11:14),vc:0};
   S.contrib[ano][mes][campo] = val;
   /* Se o usuário editou manualmente, remover a marcação de proporcional */
   if (S.contrib[ano][mes].proporcional) {
@@ -4266,22 +4271,14 @@ function editarRev(cell) {
   S.contrib[ano][mes].vc = vc;
   const el = document.getElementById(`vc-${ano}-${mes}`);
   if (el) el.textContent = fmtBR(vc);
+  /* Novembro/2017 — cód.225 (13 dias) + cód.226 (17 dias): propagar soma para a linha-total "Novembro" */
+  if (String(ano) === '2017' && (mes === 'nov_11' || mes === 'nov_14')) {
+    const n11vc = S.contrib[2017]?.['nov_11']?.vc || 0;
+    const n14vc = S.contrib[2017]?.['nov_14']?.vc || 0;
+    const elNov = document.getElementById('vc-2017-nov');
+    if (elNov) elNov.textContent = fmtBR(n11vc + n14vc);
+  }
   recalcTotalAno(ano);
-}
-
-function editarRevSpan(span) {
-  const {ano,mes,campo} = span.dataset;
-  const val = parseBR(span.textContent.trim());
-  if (!S.contrib[ano]) S.contrib[ano]={};
-  if (!S.contrib[ano][mes]) S.contrib[ano][mes]={desc:0,aliq:mes==='nov_11'?11:14,vc:0};
-  S.contrib[ano][mes][campo] = val;
-  span.textContent = fmtBR(val);
-  S.contrib[ano][mes].vc = calcVC(val, S.contrib[ano][mes].aliq);
-  const n11vc = S.contrib[2017]?.['nov_11']?.vc||0;
-  const n14vc = S.contrib[2017]?.['nov_14']?.vc||0;
-  const el = document.getElementById('vc-2017-nov');
-  if (el) el.textContent = fmtBR(n11vc+n14vc);
-  recalcTotalAno('2017');
 }
 
 function recalcTotalAno(ano) {
