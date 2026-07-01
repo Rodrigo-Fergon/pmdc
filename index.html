@@ -109,6 +109,9 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;
 .field label{display:block;font-size:.72rem;color:var(--text3);font-family:'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
 .field-opt label::after{content:' (opcional)';font-size:.63rem;opacity:.6;}
 .field input[type=text],.field input[type=date]{width:100%;padding:.5rem .8rem;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.88rem;transition:border-color .2s;}
+.field textarea{width:100%;padding:.5rem .8rem;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.88rem;transition:border-color .2s;resize:vertical;min-height:38px;}
+.field textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,210,255,0.12);}
+.field textarea::placeholder{color:var(--text3);}
 .field input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,210,255,0.12);}
 .field input::placeholder{color:var(--text3);}
 .section-sep{border:none;border-top:1px solid var(--border);margin:1.3rem 0;}
@@ -880,8 +883,10 @@ table.ctb td[contenteditable="true"]:focus{background:#fffbe6;outline:1px solid 
           <div class="field"><label>Destinatário</label><input type="text" id="tri-destinatario" value="Sr. Chefe"></div>
           <div class="field"><label>Data do Documento</label><input type="text" id="tri-data-doc" placeholder="DD/MM/AAAA"></div>
           <div class="field full"><label>Nome do(a) Servidor(a)</label><input type="text" id="tri-nome-servidor" placeholder="Nome completo em maiúsculas" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
-          <div class="field"><label>Matrícula</label><input type="text" id="tri-matricula" placeholder="Ex: 10468-6"></div>
-          <div class="field"></div>
+          <div class="field full" style="display:grid;grid-template-columns:1fr 2fr;gap:.75rem 1.5rem;">
+            <div class="field" style="margin:0;"><label>Matrícula</label><input type="text" id="tri-matricula" placeholder="Ex: 10468-6"></div>
+            <div class="field" style="margin:0;"><label>Observação</label><textarea id="tri-observacao" rows="1" placeholder="Opcional"></textarea></div>
+          </div>
         </div>
       </div>
 
@@ -7377,6 +7382,7 @@ function trienioGerarDocumento() {
   const fls     = document.getElementById('tri-folha').value.trim();
   const dest    = document.getElementById('tri-destinatario').value.trim() || 'Sr. Chefe';
   const dataDoc = document.getElementById('tri-data-doc').value.trim();
+  const observacao = document.getElementById('tri-observacao').value.trim();
 
   const trienios = trienioOrdenados();
   const {y:anoIniY, m:mesIniM, d:diaIniD} = trienios.length ? triParseDateLocal(trienios[0].dataConcessao) : {y:0,m:0,d:0};
@@ -7497,6 +7503,7 @@ function trienioGerarDocumento() {
       <tbody>${tabelaRows}</tbody>
     </table>
     <div style="font-size:10pt;margin-bottom:2rem;">NÚMERO DE MESES ENGLOBADOS: ${mesesUnicos.size}</div>
+    ${observacao ? `<div style="font-size:10pt;margin-bottom:2rem;"><strong>Observação:</strong> ${escHtml(observacao).replace(/\n/g,'<br>')}</div>` : ''}
     <div style="font-size:11pt;margin-bottom:3rem;">Duque de Caxias, ${dataDoc}.</div>
     <div style="display:flex;justify-content:center;font-size:11pt;">
       <div style="text-align:center;min-width:280px;">
@@ -7736,7 +7743,7 @@ function trienioCarregarExistente(input) {
       // linha-a-linha), apenas o cabeçalho usa esta versão colapsada.
       const txtHeader = txt.replace(/[ \t]*\n[ \t]*/g, ' ').replace(/\s{2,}/g, ' ');
 
-      let processo='', folha='', destinatario='Sr. Chefe', dataDoc='', nomeServidor='', matricula='';
+      let processo='', folha='', destinatario='Sr. Chefe', dataDoc='', nomeServidor='', matricula='', observacao='';
       let dataIniCalc='', dataFimCalc='', mesAutomacao='', anoAutomacao='';
 
       const mProc = txtHeader.match(/Processo[:\s]+([\w\/\-\.]+)/i);
@@ -7747,6 +7754,13 @@ function trienioCarregarExistente(input) {
 
       const mDest = txt.match(/^(Sr\.\s*\w+|Sra\.\s*\w+)/m);
       if (mDest) destinatario = mDest[1].trim();
+
+      // Observação (opcional) — texto livre lançado no documento anterior.
+      // Sempre aparece entre "NÚMERO DE MESES ENGLOBADOS" e "Duque de Caxias,"
+      // no documento gerado pelo sistema, então usamos essa segunda âncora como
+      // limite para capturar o texto completo (inclusive se tiver várias linhas).
+      const mObs = txt.match(/Observa[çc][ãa]o\s*:\s*([\s\S]*?)\s*Duque de Caxias,/i);
+      if (mObs) observacao = mObs[1].trim();
 
       const mDD = txtHeader.match(/Duque de Caxias,?\s+(\d{2}\/\d{2}\/\d{4})/i);
       if (mDD) dataDoc = mDD[1];
@@ -8104,6 +8118,7 @@ function trienioCarregarExistente(input) {
       setVal('tri-data-doc',      dataDoc);
       setVal('tri-nome-servidor', nomeServidor);
       setVal('tri-matricula',     matricula);
+      setVal('tri-observacao',    observacao);
       setVal('tri-mes-automacao', mesAutomacao);
       setVal('tri-ano-automacao', anoAutomacao);
 
