@@ -4456,7 +4456,7 @@ function gerarCertidao() {
       <td class="lb" colspan="3"><strong>DATA DA EXONERAÇÃO</strong></td>
     </tr>
     <tr>
-      <td class="vl">${ce('cargo',d.cargo,'','200px')}</td>
+      <td class="vl" style="text-transform:uppercase;">${ce('cargo',d.cargo,'','200px')}</td>
       <td class="vl" colspan="3">${ce('dem',exoDisplay,'dd/mm/aaaa','90px')}</td>
     </tr>
     <tr>
@@ -4521,6 +4521,18 @@ function ajustarPaginacaoCTC() {
     node.style.breakBefore     = '';
   });
 
+  /* Referências de "1 linha" do corpo da certidão, usadas para o espaçamento
+     entre o Bloco 3 (última tabela de anos) e o Bloco 4 (assinaturas). */
+  const LINHA_PX     = 25;              /* ≈ 12,5pt × line-height 1.5 do #certidao-editavel */
+  const GAP_DESEJADO = 4 * LINHA_PX;    /* espaço de 4 linhas pedido entre Bloco 3 e Bloco 4 */
+  const GAP_MINIMO   = LINHA_PX;        /* nunca menos que ~1 linha entre a tabela e a assinatura */
+
+  /* Antes de medir, aplicar o espaçamento mínimo no Bloco 4 — assim a
+     simulação de páginas abaixo já parte da hipótese mais "enxuta"
+     possível, e só depois tentamos alargar esse espaço até 4 linhas,
+     sem nunca empurrar o Bloco 4 para a página seguinte por causa disso. */
+  assin.style.marginTop = GAP_MINIMO + 'px';
+
   /* Altura útil de página: A4 (29,7cm) menos as margens de 1,4cm usadas
      tanto em @page (impressão) quanto no jsPDF de salvarPDF() (margin[1.4,...]) */
   const CM_TO_PX = 96/2.54;
@@ -4582,6 +4594,28 @@ function ajustarPaginacaoCTC() {
       }
     }
   });
+
+  /* 3) Espaço entre Bloco 3 e Bloco 4: tentar sempre 4 linhas; se a página
+        em que o Bloco 4 ficou não tiver espaço para isso, reduzir o
+        espaçamento (nunca abaixo de ~1 linha) — mas sem jogar o Bloco 4
+        para a página seguinte por causa desse espaçamento. */
+  const assinIdx  = blocos.length - 1;
+  const pIdxAssin = paginas.findIndex(indices => indices.includes(assinIdx));
+  if (pIdxAssin !== -1) {
+    const indices = paginas[pIdxAssin];
+    if (indices[0] === assinIdx) {
+      /* Bloco 4 sozinho no início de uma página (não havia espaço nem para
+         a tabela anterior) — não há "Bloco 3" nessa página para espaçar,
+         então aplicamos o espaçamento cheio, que não compete por espaço. */
+      assin.style.marginTop = GAP_DESEJADO + 'px';
+    } else {
+      const baseUsada   = (pIdxAssin === 0) ? preFichaH : 0;
+      const somaAlturas = indices.reduce((s,i) => s + alturas[i], 0); /* já inclui GAP_MINIMO */
+      const sobraPagina = PAGE_H - baseUsada - somaAlturas;
+      const extra       = Math.max(0, Math.min(GAP_DESEJADO - GAP_MINIMO, sobraPagina));
+      assin.style.marginTop = (GAP_MINIMO + extra) + 'px';
+    }
+  }
 }
 
 function editarCtb(cell) {
