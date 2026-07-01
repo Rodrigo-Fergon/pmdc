@@ -2822,6 +2822,7 @@ function parseFichaPages(pages) {
     if (!r.contrib[ano]) r.contrib[ano] = {};
 
     let colMap = null; // mapa X → índice de mês do bloco atual
+    const soma165_2004 = {}; // mi(0-4) → valor acumulado do código 165, só para jan-mai/2004
 
     for (const linha of linhasCoord) {
       const txt = linha.items.map(i => i.str).join(' ');
@@ -2898,6 +2899,57 @@ function parseFichaPages(pages) {
         }
       }
 
+      /* ── Janeiro a Maio/2004 — código 165 (somado ao 164 na coluna DESC. IPMDC) ──
+         Nesses meses o desconto do IPMDC pode vir lançado em duas linhas
+         (164 + 165). O valor final da coluna DESC. IPMDC = valor(164) +
+         valor(165). Restrito a jan-mai/2004 (mi 0 a 4); de junho/2004 em
+         diante o comportamento é o de sempre (só código 164). */
+      if (ano === 2004 && /\b165\b/.test(txt) && colMap) {
+        const valoresEncontrados165 = [];
+
+        const todosVals165 = linha.items
+          .filter(it => _VAL_RE.test(it.str) && parseBR(it.str) > 0)
+          .sort((a, b) => a.x - b.x);
+
+        for (const it of todosVals165) {
+          const mi = _resolverMes(it.x, colMap);
+          if (mi !== null) {
+            valoresEncontrados165.push({ mi, val: parseBR(it.str), x: it.x });
+          }
+        }
+
+        const nCols165 = Object.keys(colMap).length;
+        const colsOrdenadas165 = Object.entries(colMap)
+          .sort((a, b) => Number(a[0]) - Number(b[0]))
+          .map(([, mi]) => mi);
+
+        const mesesUsados165 = valoresEncontrados165.map(v => v.mi);
+        const temDuplicata165 = mesesUsados165.length !== new Set(mesesUsados165).size;
+
+        if (todosVals165.length > 0 &&
+            (valoresEncontrados165.length !== todosVals165.length ||
+             todosVals165.length < nCols165 ||
+             temDuplicata165)) {
+          valoresEncontrados165.length = 0;
+          const offset165 = nCols165 - todosVals165.length;
+          todosVals165.forEach((it, idx) => {
+            const mi = colsOrdenadas165[Math.max(0, offset165) + idx];
+            if (mi !== undefined) valoresEncontrados165.push({ mi, val: parseBR(it.str) });
+          });
+          log(`    Linha 165 fallback-ordinal: ${todosVals165.length} valor(es) → offset ${nCols165 - todosVals165.length}`);
+        }
+
+        for (const { mi, val } of valoresEncontrados165) {
+          if (mi < 5) { // jan(0) a mai(4) — únicos meses/2004 elegíveis
+            soma165_2004[mi] = (soma165_2004[mi] || 0) + val;
+            log(`    → cód.165 ${MESES_KEY[mi]}/2004: ${val} (será somado ao 164)`);
+          }
+        }
+        if (valoresEncontrados165.length === 0) {
+          log(`    Linha 165 sem valores reconhecidos: "${txt.substring(0,100)}"`);
+        }
+      }
+
       /* ── Detectar códigos 50 e 32 (Dif. Salarial / Diferença de Salário) ──
          Quando presentes num mês, esse mês é o mês de referência para o
          cálculo proporcional dos meses iniciais da situação B pura.
@@ -2943,6 +2995,28 @@ function parseFichaPages(pages) {
           }
         }
         if (r.contrib[2017]?.['nov']) delete r.contrib[2017]['nov'];
+      }
+    }
+
+    /* ── Mesclar código 165 ao 164 na coluna DESC. IPMDC (jan-mai/2004) ── */
+    if (ano === 2004) {
+      for (let mi = 0; mi < 5; mi++) {
+        const val165 = soma165_2004[mi];
+        if (val165 && val165 > 0) {
+          const mkey = MESES_KEY[mi];
+          if (r.contrib[2004][mkey]) {
+            const antigo = r.contrib[2004][mkey].desc;
+            const novoDesc = antigo + val165;
+            const aliq = r.contrib[2004][mkey].aliq || aliqHistorica(2004, mi) || 14;
+            r.contrib[2004][mkey] = { desc: novoDesc, aliq, vc: calcVC(novoDesc, aliq) };
+            log(`  DESC. IPMDC ${mkey}/2004 = 164 (${antigo}) + 165 (${val165}) = ${novoDesc}`);
+          } else {
+            /* Não havia código 164 lançado neste mês — usa só o 165 */
+            const aliq = aliqHistorica(2004, mi) || 14;
+            r.contrib[2004][mkey] = { desc: val165, aliq, vc: calcVC(val165, aliq) };
+            log(`  DESC. IPMDC ${mkey}/2004 = 165 (${val165}) — cód.164 não encontrado neste mês`);
+          }
+        }
       }
     }
 
