@@ -4807,8 +4807,21 @@ function salvarPDF() {
   /* A maioria dos navegadores usa document.title como nome sugerido do
      arquivo ao salvar como PDF pela caixa de impressão. */
   document.title = nomeArquivoCertidao('pdf').replace(/\.pdf$/i, '');
-  window.print();
-  document.title = origTitle;
+
+  /* IMPORTANTE — bug conhecido do Chrome: se o DOM é alterado (estilos de
+     paginação em ajustarPaginacaoCTC(), criação do stateDiv acima) e
+     window.print() é chamado de forma síncrona logo em seguida, o motor
+     de impressão pode capturar o layout ANTES dele "assentar" — a caixa
+     de diálogo mostra a pré-visualização certa (ela renderiza de novo, na
+     hora), mas o PDF salvo pelo destino "Salvar como PDF" sai em branco.
+     Esperar dois frames de renderização (rAF aninhado) antes de chamar
+     window.print() garante que o navegador já processou o novo layout. */
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      window.print();
+      document.title = origTitle;
+    });
+  });
 }
 
 /* manter compatibilidade com chamadas antigas */
