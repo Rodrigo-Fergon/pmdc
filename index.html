@@ -1651,8 +1651,7 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
     <div id="page4" class="hidden">
       <div class="btn-row no-print" style="margin-bottom:1rem;">
         <button class="btn btn-outline" onclick="voltarEditarCertidao()">← Voltar / Editar</button>
-        <button class="btn btn-primary" onclick="imprimirNormal()">🖨️ Imprimir</button>
-        <button class="btn btn-success" onclick="salvarPDF()" title="Abre a caixa de impressão do navegador — escolha o destino &quot;Salvar como PDF&quot; para baixar o arquivo. Assim o PDF sai idêntico ao documento impresso.">📄 Salvar PDF</button>
+        <button class="btn btn-primary" onclick="imprimirNormal()" title="Abre a caixa de impressão do navegador — escolha uma impressora física para imprimir, ou o destino &quot;Salvar como PDF&quot; para baixar o arquivo já com o nome padrão preenchido.">🖨️ Imprimir / Salvar PDF</button>
         <button class="btn btn-gold" onclick="exportarXLS()">💾 Exportar para Desktop (.xlsx)</button>
       </div>
       <div id="certidao-wrap">
@@ -4755,13 +4754,52 @@ function recalcTotalCert(ano) {
   if(el) el.textContent=fmtBR(tot);
 }
 
-/* ═══ IMPRIMIR / EXPORTAR ═══ */
+/* ═══ IMPRIMIR / EXPORTAR ═══
+   Este botão serve tanto para impressão física quanto para "Salvar como
+   PDF" — o próprio navegador oferece as duas opções na mesma caixa de
+   diálogo. Por isso o nome padrão do arquivo (nomeArquivoCertidao) é
+   definido aqui, assim como no antigo botão "Salvar PDF" (removido por
+   ser redundante — ambos abrem a mesma caixa de diálogo do navegador). */
 function imprimirNormal() {
   ajustarPaginacaoCTC();
+
+  /* Embutir estado JSON como elemento oculto dentro da certidão, para
+     permitir recuperação futura ao reabrir o PDF salvo (mesmo mecanismo
+     que já existia em salvarPDF()). */
+  const stateObj = {
+    dados:      S.dados,
+    contrib:    S.contrib,
+    pctFuturo:  S.pctFuturo,
+    situacaoA:  S.situacaoA,
+    situacaoB:  S.situacaoB,
+    periodoIni: S.periodoIni ? S.periodoIni.toISOString() : null,
+    periodoFim: S.periodoFim ? S.periodoFim.toISOString() : null,
+    admissao:   S.dados.admissao || '',
+    exoneracao: S.dados.demissao || ''
+  };
+  const jsonId = '__pmdc_state__';
+  let stateDiv = document.getElementById(jsonId);
+  if (!stateDiv) {
+    stateDiv = document.createElement('div');
+    stateDiv.id = jsonId;
+    stateDiv.style.cssText = 'position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;top:0;left:0;font-size:1px;line-height:1px;color:#fff;overflow:hidden;clip:rect(0,0,0,0);white-space:pre;';
+    document.getElementById('certidao-editavel').appendChild(stateDiv);
+  }
+  stateDiv.textContent = 'PMDC_STATE_JSON:' + JSON.stringify(stateObj);
+
   const origTitle = document.title;
-  document.title = '';
-  window.print();
-  document.title = origTitle;
+  document.title = nomeArquivoCertidao('pdf').replace(/\.pdf$/i, '');
+
+  /* Esperar o layout assentar antes de chamar window.print() — evita o
+     bug do Chrome em que o PDF salvo sai em branco mesmo com a
+     pré-visualização correta (ver explicação detalhada em salvarPDF(),
+     mantida no código abaixo por referência). */
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      window.print();
+      document.title = origTitle;
+    });
+  });
 }
 
 function salvarPDF() {
