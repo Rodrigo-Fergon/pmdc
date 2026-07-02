@@ -4789,7 +4789,14 @@ function salvarPDF() {
     if (!stateDiv) {
       stateDiv = document.createElement('div');
       stateDiv.id = jsonId;
-      stateDiv.style.cssText = 'position:absolute;left:-9999px;top:0;font-size:1px;color:white;overflow:hidden;white-space:pre;';
+      /* IMPORTANTE: nunca usar deslocamento grande (ex.: left:-9999px) aqui.
+         Esta div fica DENTRO do elemento capturado pelo html2canvas
+         (salvarPDF); um filho posicionado muito longe do container infla o
+         tamanho/posição do canvas interno da biblioteca e pode fazer o PDF
+         sair com páginas em branco. Usamos o padrão "visually hidden"
+         (1px, recortado, sem deslocamento) que fica dentro dos limites
+         normais do elemento. */
+      stateDiv.style.cssText = 'position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;top:0;left:0;font-size:1px;line-height:1px;color:#fff;overflow:hidden;clip:rect(0,0,0,0);white-space:pre;';
       el.appendChild(stateDiv);
     }
     stateDiv.textContent = 'PMDC_STATE_JSON:' + JSON.stringify(stateObj);
