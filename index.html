@@ -246,11 +246,13 @@ table.ctb td[contenteditable="true"]:focus{background:#fffbe6;outline:1px solid 
   #certidao-editavel table.ctb th.val-h,
   #certidao-editavel table.ctb th.mes-h{background:#d4d4d4!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
   #certidao-editavel table.ctb td.val-dash{background:#e8e8e8!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+  #certidao-editavel table.ctb th.ano-h-pad,
+  #certidao-editavel table.ctb th.val-h-pad{background:#e8e8e8!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
 
   /* Campos editáveis: sem sublinhado na impressão */
   .ce{border-bottom:none!important;}
   /* Assinatura nunca quebra entre páginas */
-  .cert-assin{page-break-inside:avoid!important;break-inside:avoid!important;page-break-before:avoid!important;break-before:avoid!important;}
+  .cert-assin{page-break-inside:avoid!important;break-inside:avoid!important;}
   /* Garantir que linha e nome fiquem juntos */
   .cert-assin .bloco{page-break-inside:avoid!important;break-inside:avoid!important;display:inline-block!important;width:30%!important;}
 
@@ -268,6 +270,82 @@ table.ctb td[contenteditable="true"]:focus{background:#fffbe6;outline:1px solid 
      papel em branco abaixo do bloco de assinatura. */
   body::before,body::after{display:none!important;content:none!important;background:none!important;}
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   MODO "CERTIDÃO FINAL" — versão da regra acima usada SÓ para o PDF
+   ═══════════════════════════════════════════════════════════════
+   O botão "Salvar PDF" (html2pdf/html2canvas) nunca aciona o modo
+   de impressão do navegador — ele tira uma "foto" (canvas) da tela
+   como ela está, então as regras de "@media print" acima nunca são
+   aplicadas nesse caminho. Por isso este bloco repete exatamente
+   as mesmas regras, mas ativadas por uma classe (.ctc-print-mode)
+   em vez de por "@media print".
+
+   Essa classe é ligada SOMENTE dentro do callback onclone() do
+   html2canvas (ver salvarPDF()), ou seja, apenas no clone invisível
+   do documento que a biblioteca usa para gerar a imagem — a tela
+   que você está vendo nunca é alterada. Resultado: o PDF salvo usa
+   o mesmo layout do documento impresso.
+
+   IMPORTANTE: qualquer alteração de layout de impressão feita no
+   bloco "@media print" acima também precisa ser replicada aqui,
+   para as duas saídas continuarem idênticas.
+   ═══════════════════════════════════════════════════════════════ */
+html.ctc-print-mode{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff!important;margin:0;padding:0;}
+html.ctc-print-mode head{display:none!important;}
+
+/* Ocultar toda a interface — mostrar só a certidão */
+html.ctc-print-mode body{background:#fff!important;margin:0;padding:0;}
+html.ctc-print-mode body > *{display:none!important;}
+html.ctc-print-mode #tela-ctc{display:block!important;background:#fff!important;}
+html.ctc-print-mode #tela-ctc > *:not(.ctc-body){display:none!important;}
+html.ctc-print-mode .ctc-body{background:#fff!important;padding:0!important;margin:0!important;max-width:100%!important;}
+html.ctc-print-mode .ctc-body > *:not(#page4){display:none!important;}
+html.ctc-print-mode #page4{display:block!important;background:#fff!important;margin:0!important;padding:0!important;}
+html.ctc-print-mode .btn-row.no-print, html.ctc-print-mode .cert-toolbar{display:none!important;}
+html.ctc-print-mode #certidao-wrap{display:block!important;border:none!important;border-radius:0!important;background:#fff!important;margin-bottom:0!important;}
+html.ctc-print-mode #certidao-editavel{display:block!important;background:#fff!important;color:#000!important;padding:0!important;}
+
+/* Todos os elementos da certidão: fundo branco, texto preto — exceto células com cinza intencional */
+html.ctc-print-mode #certidao-editavel *{color:#000!important;}
+html.ctc-print-mode #certidao-editavel .cert-hdr,
+html.ctc-print-mode #certidao-editavel .cert-titulo,
+html.ctc-print-mode #certidao-editavel .cert-subtitulo,
+html.ctc-print-mode #certidao-editavel .cert-assin,
+html.ctc-print-mode #certidao-editavel p,
+html.ctc-print-mode #certidao-editavel div,
+html.ctc-print-mode #certidao-editavel table{background:#fff!important;}
+html.ctc-print-mode #certidao-editavel td,
+html.ctc-print-mode #certidao-editavel th{background:#fff!important;}
+/* Exceções: células com cinza intencional sobrescrevem a regra acima */
+html.ctc-print-mode #certidao-editavel .cert-ficha td.lb{background:#e8e8e8!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+html.ctc-print-mode #certidao-editavel table.ctb th.ano-h{background:#bbb!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+html.ctc-print-mode #certidao-editavel table.ctb th.val-h,
+html.ctc-print-mode #certidao-editavel table.ctb th.mes-h{background:#d4d4d4!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+html.ctc-print-mode #certidao-editavel table.ctb td.val-dash{background:#e8e8e8!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+html.ctc-print-mode #certidao-editavel table.ctb th.ano-h-pad,
+html.ctc-print-mode #certidao-editavel table.ctb th.val-h-pad{background:#e8e8e8!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+
+/* Campos editáveis: sem sublinhado na impressão/PDF */
+html.ctc-print-mode .ce{border-bottom:none!important;}
+/* Assinatura nunca quebra entre páginas */
+html.ctc-print-mode .cert-assin{page-break-inside:avoid!important;break-inside:avoid!important;}
+/* Garantir que linha e nome fiquem juntos */
+html.ctc-print-mode .cert-assin .bloco{page-break-inside:avoid!important;break-inside:avoid!important;display:inline-block!important;width:30%!important;}
+
+/* Cabeçalho da certidão: usar flex para evitar espaço excessivo do position:absolute */
+html.ctc-print-mode .cert-hdr{min-height:unset!important;position:static!important;}
+html.ctc-print-mode .cert-hdr img[alt="Brasão"]{position:static!important;float:left!important;margin-right:8px!important;}
+/* Nenhum ano/bloco de tabela pode ser fragmentado entre páginas — se não couber
+   inteiro na página atual, a tabela inteira vai para a próxima página (ver
+   também a paginação manual aplicada por ajustarPaginacaoCTC()). */
+html.ctc-print-mode table.ctb{page-break-inside:avoid!important;break-inside:avoid!important;}
+
+/* Remover o fundo decorativo (grade + scanline) do tema do sistema — esses
+   pseudo-elementos não são filhos de <body> e por isso não eram ocultados
+   pela regra "body > *{display:none}", aparecendo como linhas cinzas no
+   papel em branco abaixo do bloco de assinatura. */
+html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!important;content:none!important;background:none!important;}
 #print-area{display:none;background:#fff;}
 .hidden{display:none!important;}
 @keyframes fadeSlideDown{from{opacity:0;transform:translateY(-20px);}to{opacity:1;transform:translateY(0);}}
@@ -2888,10 +2966,16 @@ function parseFichaPages(pages) {
         const mesesUsados1 = valoresEncontrados.map(v => v.mi);
         const temDuplicata = mesesUsados1.length !== new Set(mesesUsados1).size;
 
+        /* Exceção: em 2017 o código 164 só aparece em Set/Out (Nov/Dez passam
+           a usar os códigos 225/226) — ou seja, os valores ocupam o INÍCIO
+           do bloco, não o fim. Nesse ano não aplicamos o fallback ordinal
+           "últimas N colunas" apenas por haver menos valores que colunas;
+           confiamos no mapeamento por posição X (Estratégia 1), desde que
+           ele tenha sido consistente (sem divergência de contagem/duplicata). */
         if (todosVals.length > 0 &&
             (valoresEncontrados.length !== todosVals.length ||
-             todosVals.length < nCols ||
-             temDuplicata)) {
+             temDuplicata ||
+             (todosVals.length < nCols && ano !== 2017))) {
           valoresEncontrados.length = 0;
           const offset = nCols - todosVals.length;
           todosVals.forEach((it, idx) => {
@@ -3075,14 +3159,20 @@ function parseFicha(text) {
 
 /* ═══════════════════════════════════════════════════════════
    PARSER ESPECÍFICO PARA FICHAS DE DÉCIMO TERCEIRO
-   Extrai o valor do código 164 (Desc. IPMDC) de cada página,
-   associando ao ano base da página, e retorna:
+   Extrai o valor do desconto de IPMDC (Desc. IPMDC) de cada
+   página, associando ao ano base da página, e retorna:
    { dec13: { [ano]: valorDesc }, debug: [] }
 
    A lógica é idêntica à do parser principal, mas:
    • Não processa meses individuais (nov/dez) — só o valor
      único presente na página de 13º (coluna nov ou dez).
    • Usa a detecção de ano base para saber a qual ano pertence.
+   • O desconto de IPMDC no Décimo Terceiro pode vir lançado
+     sob o código 164 OU sob o código 177 ("IPMDC (13º Salário)"),
+     dependendo do ano/folha. Regra de preenchimento:
+       - só 164 presente  → usa o valor do 164
+       - só 177 presente  → usa o valor do 177
+       - ambos presentes  → usa a SOMA dos dois
 ═══════════════════════════════════════════════════════════ */
 function parseFichaPagesDec13(pages) {
   const r = { dec13: {}, debug: [] };
@@ -3106,12 +3196,15 @@ function parseFichaPagesDec13(pages) {
     /* Detectar o colMap para esta página */
     let colMap = null;
     let desc164 = 0;
+    let desc177 = 0;
 
     for (const linha of linhasCoord) {
       const novoMap = _mapeiaMeses(linha);
       if (novoMap) { colMap = novoMap; continue; }
 
-      if (/\b164\b/.test(linha.items.map(i=>i.str).join(' '))) {
+      const txtLinha = linha.items.map(i=>i.str).join(' ');
+
+      if (/\b164\b/.test(txtLinha)) {
         const todosVals = linha.items
           .filter(it => _VAL_RE.test(it.str) && parseBR(it.str) > 0)
           .sort((a,b) => a.x - b.x);
@@ -3120,16 +3213,29 @@ function parseFichaPagesDec13(pages) {
           /* Usar o último valor encontrado (coluna mais à direita = nov ou dez) */
           desc164 = parseBR(todosVals[todosVals.length - 1].str);
           log(`  Cód.164 encontrado: ${desc164}`);
-          break;
+        }
+      }
+
+      if (/\b177\b/.test(txtLinha)) {
+        const todosVals177 = linha.items
+          .filter(it => _VAL_RE.test(it.str) && parseBR(it.str) > 0)
+          .sort((a,b) => a.x - b.x);
+
+        if (todosVals177.length > 0) {
+          desc177 = parseBR(todosVals177[todosVals177.length - 1].str);
+          log(`  Cód.177 encontrado: ${desc177}`);
         }
       }
     }
 
-    if (desc164 > 0) {
-      r.dec13[ano] = desc164;
-      log(`  → dec13/${ano}: ${desc164}`);
+    const descFinal = desc164 + desc177;
+
+    if (descFinal > 0) {
+      r.dec13[ano] = descFinal;
+      const detalhe = (desc164 > 0 && desc177 > 0) ? ` (164=${desc164} + 177=${desc177})` : '';
+      log(`  → dec13/${ano}: ${descFinal}${detalhe}`);
     } else {
-      log(`  Nenhum valor de cód.164 encontrado para ${ano}`);
+      log(`  Nenhum valor de cód.164/177 encontrado para ${ano}`);
     }
   }
 
@@ -3877,8 +3983,8 @@ function renderTabelaRevisao() {
         </tr>
         <tr>
           <td class="mes">Novembro</td>
-          <td style="text-align:center;opacity:.55;">0,00</td>
-          <td style="text-align:center;opacity:.55;">0</td>
+          <td style="text-align:right;opacity:.55;">0,00</td>
+          <td style="text-align:right;opacity:.55;">0</td>
           <td class="vc-col" id="vc-2017-nov">${fmtBR(totN)}</td>
         </tr>`;
         return;
@@ -4692,7 +4798,17 @@ function salvarPDF() {
       margin:       [1.4, 1.6, 1.4, 1.6],
       filename:     nomeArquivoCertidao('pdf'),
       image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true, logging: false },
+      html2canvas:  {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        /* Ativa o "modo certidão final" (mesmas regras do @media print)
+           só dentro do clone invisível que o html2canvas usa para gerar
+           a imagem — a tela que o usuário está vendo não é afetada. */
+        onclone: (clonedDoc) => {
+          clonedDoc.documentElement.classList.add('ctc-print-mode');
+        }
+      },
       jsPDF:        { unit: 'cm', format: 'a4', orientation: 'portrait' },
       pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
     };
