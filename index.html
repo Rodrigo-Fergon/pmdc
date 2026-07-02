@@ -1725,6 +1725,21 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-diretor">
+  <div class="modal">
+    <h3>🖋️ Diretor(a) Responsável</h3>
+    <p>Confirme os dados de quem assinará o "Visto" desta certidão. Se a direção mudou, edite os campos abaixo antes de confirmar — o novo valor passa a ser usado nas próximas certidões.</p>
+    <label style="display:block;margin-top:.6rem;font-size:.8rem;color:var(--text2);">Nome do(a) Diretor(a)</label>
+    <input type="text" id="modal-diretor-nome" placeholder="Nome completo">
+    <label style="display:block;margin-top:.6rem;font-size:.8rem;color:var(--text2);">Matrícula</label>
+    <input type="text" id="modal-diretor-matricula" placeholder="00000-0" maxlength="8" oninput="maskMatriculaInput(this)">
+    <div class="btn-row">
+      <button class="btn btn-gold" onclick="confirmarDiretorModal()">✓ Confirmar</button>
+    </div>
+  </div>
+</div>
+
+
 <script>
 /* Carrega o worker do PDF.js via blob URL para funcionar em file://, Opera, Chrome e Firefox */
 (async () => {
@@ -3273,6 +3288,50 @@ function confirmarPctFuturo() {
   if (S._futuroResolve) { S._futuroResolve(pct); S._futuroResolve = null; }
 }
 
+/* ═══ MODAL DIRETOR(A) RESPONSÁVEL — CTC ═══
+   Nome e matrícula de quem assina o "Visto" na certidão. Persistidos em
+   localStorage para que a confirmação (feita antes de cada certidão)
+   já venha pré-preenchida com o último valor usado; "Erica Silva de
+   Mattos" / "11018-0" são os valores padrão iniciais, usados apenas se
+   nada tiver sido salvo ainda. */
+const CTC_DIRETOR_KEY     = 'pmdc_ctc_diretor';
+const CTC_DIRETOR_DEFAULT = { nome: 'Erica Silva de Mattos', matricula: '11018-0' };
+
+function obterConfigDiretor() {
+  try {
+    const raw = localStorage.getItem(CTC_DIRETOR_KEY);
+    if (raw) {
+      const cfg = JSON.parse(raw);
+      if (cfg && cfg.nome && cfg.matricula) return cfg;
+    }
+  } catch(e) { console.error('Erro ao ler config do diretor:', e); }
+  return { ...CTC_DIRETOR_DEFAULT };
+}
+
+function salvarConfigDiretor(cfg) {
+  try { localStorage.setItem(CTC_DIRETOR_KEY, JSON.stringify(cfg)); }
+  catch(e) { console.error('Erro ao salvar config do diretor:', e); }
+}
+
+let _diretorResolve = null;
+function confirmarDiretor() {
+  return new Promise(resolve => {
+    _diretorResolve = resolve;
+    const cfg = obterConfigDiretor();
+    document.getElementById('modal-diretor-nome').value      = cfg.nome;
+    document.getElementById('modal-diretor-matricula').value = cfg.matricula;
+    document.getElementById('modal-diretor').classList.add('open');
+  });
+}
+function confirmarDiretorModal() {
+  const nome      = document.getElementById('modal-diretor-nome').value.trim()      || CTC_DIRETOR_DEFAULT.nome;
+  const matricula = formatMatricula(document.getElementById('modal-diretor-matricula').value) || CTC_DIRETOR_DEFAULT.matricula;
+  const cfg = { nome, matricula };
+  salvarConfigDiretor(cfg);
+  document.getElementById('modal-diretor').classList.remove('open');
+  if (_diretorResolve) { _diretorResolve(cfg); _diretorResolve = null; }
+}
+
 /* ═══ PROCESSAR ═══ */
 async function processarTudo() {
   const btn = document.getElementById('btn-processar');
@@ -4411,7 +4470,7 @@ function recalcTotalAno(ano) {
 }
 
 /* ═══ GERAR CERTIDÃO ═══ */
-function gerarCertidao() {
+async function gerarCertidao() {
   const d = S.dados;
   d.nome       = document.getElementById('f-nome').value;
   d.matricula  = document.getElementById('f-mat').value.replace(/\D/g,'');
@@ -4437,6 +4496,22 @@ function gerarCertidao() {
 
   const periodoTexto = S.periodoIni.toLocaleDateString('pt-BR') + ' A ' + S.periodoFim.toLocaleDateString('pt-BR');
   const hoje = new Date().toLocaleDateString('pt-BR');
+
+  /* ── Confirmação do(a) Diretor(a) responsável pelo "Visto" ──
+     Antes de montar a pré-visualização, confirma com o usuário se o nome
+     e a matrícula da direção continuam os mesmos (persistidos localmente,
+     com "Erica Silva de Mattos" / "11018-0" como padrão inicial). Se o
+     usuário alterar os campos no modal, o novo valor passa a ser o padrão
+     para as próximas certidões, até ser alterado novamente. */
+  const diretor = await confirmarDiretor();
+
+  /* ── Nome/matrícula do usuário logado, para a linha "Lavrei a Certidão" ──
+     Exceção: matrícula 14618-9 (usuário master) sempre exibe "Rodrigo
+     Gonçalves" em vez do nome de cadastro/login. */
+  const _nomesCustomAssinaturaCTC = { '146189': 'Rodrigo Gonçalves' };
+  const matOperadorNorm = normMatricula(_sessaoAtual?.matricula || '');
+  const nomeOperador    = _nomesCustomAssinaturaCTC[matOperadorNorm] || (_sessaoAtual?.nome || '');
+  const matOperadorFmt  = formatMatricula(_sessaoAtual?.matricula || '');
 
   const ce = (id,val,ph,w) =>
     `<span class="ce" contenteditable="true" id="ce-${id}" data-ph="${ph||''}" style="min-width:20px;max-width:100%;">${val||''}</span>`;
@@ -4578,8 +4653,13 @@ function gerarCertidao() {
     <div class="bloco"><div class="linha"></div>
       <p contenteditable="true">Lavrei a Certidão</p>
       <p contenteditable="true">Duque de Caxias, ${hoje}</p>
+      <p contenteditable="true">${nomeOperador}${nomeOperador && matOperadorFmt ? ' - ' : ''}${matOperadorFmt}</p>
     </div>
-    <div class="bloco"><div class="linha"></div><p contenteditable="true">Visto da Diretora</p></div>
+    <div class="bloco"><div class="linha"></div>
+      <p contenteditable="true">Visto do(a) Diretor(a)</p>
+      <p contenteditable="true">${diretor.nome}</p>
+      <p contenteditable="true">Matrícula ${formatMatricula(diretor.matricula)}</p>
+    </div>
     <div class="bloco"><div class="linha"></div><p contenteditable="true">Homologação IPMDC</p></div>
   </div>`;
 
