@@ -2170,36 +2170,76 @@ function carregarCertidaoExistente(input) {
 
         const setMsg = (m) => { const el = document.getElementById('pdf-ocr-msg'); if(el) el.textContent = m; };
 
-        /* ── 1. Renderizar PDF como canvas (alta resolução para OCR) ── */
-        setMsg('Renderizando PDF…');
+        /* ── 1. Extrair texto de TODAS as páginas do PDF ──
+           Esta certidão é gerada pelo próprio sistema (impressão do navegador),
+           logo o PDF tem uma camada de texto real e limpa — NÃO é uma imagem
+           escaneada. Ler essa camada de texto diretamente (getTextContent) é
+           muito mais confiável do que OCR, que embaralha tabelas com várias
+           colunas numéricas. OCR fica como fallback apenas se o PDF não tiver
+           texto embutido (ex.: certidão antiga digitalizada por scanner/foto).
+           Também é essencial processar TODAS as páginas: a tabela de anos pode
+           se estender por várias páginas (ex.: pág.1 = cabeçalho + primeiros
+           anos, pág.2+ = anos restantes) — processar só a página 1 deixava a
+           maior parte da tabela em branco. */
+        setMsg('Lendo PDF…');
         const typedArray = new Uint8Array(e.target.result);
         const pdf        = await pdfjsLib.getDocument({ data: typedArray }).promise;
-        const page1      = await pdf.getPage(1);
-        const viewport   = page1.getViewport({ scale: 2.5 });
-        const canvas     = document.createElement('canvas');
-        canvas.width     = viewport.width;
-        canvas.height    = viewport.height;
-        await page1.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-        const imgDataUrl = canvas.toDataURL('image/png');
 
-        /* ── 2. OCR com Tesseract.js ── */
-        setMsg('Executando OCR… (pode levar alguns segundos)');
-        if (typeof Tesseract === 'undefined') {
-          await new Promise((res, rej) => {
-            const s = document.createElement('script');
-            s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-            s.onload = res; s.onerror = rej;
-            document.head.appendChild(s);
+        let ocrText = '';
+        for (let numPag = 1; numPag <= pdf.numPages; numPag++) {
+          setMsg(`Lendo texto da página ${numPag}/${pdf.numPages}…`);
+          const pagina  = await pdf.getPage(numPag);
+          const content = await pagina.getTextContent();
+          /* Reconstrói as linhas respeitando a ordem visual: cada item de texto
+             marcado com hasEOL indica o fim de uma linha do PDF. */
+          let buffer = '';
+          content.items.forEach(item => {
+            buffer += item.str;
+            if (item.hasEOL) {
+              const linhaLimpa = buffer.replace(/\s+/g, ' ').trim();
+              if (linhaLimpa) ocrText += linhaLimpa + '\n';
+              buffer = '';
+            }
           });
+          if (buffer.trim()) ocrText += buffer.replace(/\s+/g,' ').trim() + '\n';
+          ocrText += '\n';
         }
-        const { data: { text: ocrText } } = await Tesseract.recognize(imgDataUrl, 'por+eng', {
-          logger: m => { if (m.status === 'recognizing text') setMsg('OCR: ' + Math.round((m.progress||0)*100) + '%…'); }
-        });
 
-        /* ── 3. Parsear texto OCR ── */
+        /* ── Fallback OCR: só entra em ação se o PDF não tiver texto embutido ── */
+        if (!ocrText.replace(/\s/g,'').length) {
+          setMsg('PDF sem texto embutido — usando OCR…');
+          if (typeof Tesseract === 'undefined') {
+            await new Promise((res, rej) => {
+              const s = document.createElement('script');
+              s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+              s.onload = res; s.onerror = rej;
+              document.head.appendChild(s);
+            });
+          }
+          for (let numPag = 1; numPag <= pdf.numPages; numPag++) {
+            setMsg(`Renderizando página ${numPag}/${pdf.numPages}…`);
+            const pagina    = await pdf.getPage(numPag);
+            const viewport  = pagina.getViewport({ scale: 2.5 });
+            const canvas    = document.createElement('canvas');
+            canvas.width    = viewport.width;
+            canvas.height   = viewport.height;
+            await pagina.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+            const imgDataUrl = canvas.toDataURL('image/png');
+
+            setMsg(`Executando OCR… página ${numPag}/${pdf.numPages}`);
+            const { data: { text: textoPagina } } = await Tesseract.recognize(imgDataUrl, 'por+eng', {
+              logger: m => { if (m.status === 'recognizing text') setMsg(`OCR pág. ${numPag}/${pdf.numPages}: ` + Math.round((m.progress||0)*100) + '%…'); }
+            });
+            ocrText += '\n' + textoPagina;
+          }
+        }
+
+        /* ── 2. Parsear texto extraído ── */
         setMsg('Extraindo dados do servidor…');
         const txt = ocrText.replace(/\r/g,'');
         const linhasTxt = txt.split('\n').map(l => l.trim());
+
+
 
         /* ── Nome: linha seguinte a "NOME DO SERVIDOR" ── */
         let nome = '';
@@ -2214,45 +2254,57 @@ function carregarCertidaoExistente(input) {
             break;
           }
         }
-        /* Remover matrícula do final (padrão NNNNN-N) */
-        nome = nome.replace(/\s+\d{4,7}[-\u2013]\d\s*$/, '').trim();
+        /* Cortar no primeiro token que começa com dígito (matrícula, data etc.
+           que ficaram colados na mesma linha do nome) — mais robusto do que
+           tentar remover um padrão específico só no final da string. */
+        const _nomeCorte = nome.match(/^([A-ZÀ-Ý\s]+?)(?=\s+\d)/);
+        if (_nomeCorte) nome = _nomeCorte[1].trim();
 
         /* ── Matrícula ── */
         const matM = txt.match(/\b(\d{4,7}[-\u2013]\d)\b/);
         const mat  = matM ? matM[1] : '';
 
-        /* ── CPF ── */
-        const cpfM = txt.match(/(\d{3}\.\d{3}\.\d{3}-\d{2})/);
-        const cpf  = cpfM ? cpfM[1] : '';
+        /* ── CPF ── (tolera quebra de linha entre o traço e os 2 dígitos finais:
+           acontece quando o nome da mãe é longo e "empurra" a linha da tabela,
+           quebrando também as células vizinhas de CPF/PIS em duas linhas) */
+        const cpfM = txt.match(/(\d{3}\.\d{3}\.\d{3}-)\s*(\d{2})/);
+        const cpf  = cpfM ? (cpfM[1] + cpfM[2]) : '';
 
-        /* ── PIS: token logo após CPF na mesma linha ── */
+        /* ── PIS/PASEP: formato padrão NNN.NNNNN.NN-N (11 dígitos), buscado no
+           texto inteiro — não depende de estar na mesma linha do CPF, pois a
+           célula pode ter quebrado em linhas diferentes (ver nota do CPF acima) ── */
         let pis = '';
-        for (const l of linhasTxt) {
-          if (cpf && l.includes(cpf)) {
-            const rest = l.slice(l.indexOf(cpf) + cpf.length).trim();
-            const mP = rest.match(/^([\d][\d\.\-\/]{6,})/);
-            if (mP) { pis = mP[1]; break; }
-          }
+        let pisFimIdx = -1;
+        const pisM = txt.match(/(\d{3}\.\d{5}\.\d{2}-)\s*(\d)/);
+        if (pisM) {
+          pis = pisM[1] + pisM[2];
+          pisFimIdx = pisM.index + pisM[0].length;
         }
         if (!pis) {
-          const mP2 = txt.match(/PIS[\s\/]PASEP\s+([\d][\d\.\-\/]+)/i);
-          if (mP2) pis = mP2[1];
+          const mP2 = txt.match(/PIS[\s\/]PASEP\s+([\d][\d\.\-\/\s]{6,25}\d)/i);
+          if (mP2) { pis = mP2[1].replace(/\s+/g,''); pisFimIdx = mP2.index + mP2[0].length; }
         }
 
-        /* ── Nascimento: primeira linha que começa com dd/mm/aaaa ── */
-        let nasc = '';
-        for (const l of linhasTxt) {
-          const mD = l.match(/^(\d{2}\/\d{2}\/\d{4})/);
-          if (mD) { nasc = mD[1]; break; }
-        }
+        /* ── Nascimento: 1ª data dd/mm/aaaa que aparece no documento
+           (sempre vem antes de admissão/exoneração/período no layout da certidão) ── */
+        const nascM = txt.match(/(\d{2}\/\d{2}\/\d{4})/);
+        let nasc = nascM ? nascM[1] : '';
 
-        /* ── Nome da mãe: mesma linha do nascimento, após a data ── */
+        /* ── Nome da mãe: linhas após o rótulo "NOME DA MÃE" até a 1ª linha
+           que começa com dígito (início da coluna do CPF) — o nome pode
+           quebrar em mais de uma linha quando é longo. ── */
         let mae = '';
-        for (const l of linhasTxt) {
-          const mM = l.match(/^\d{2}\/\d{2}\/\d{4}\s+(.+)/);
-          if (mM) {
-            const candidate = mM[1].trim();
-            if (/[A-Z\u00C0-\u00DC]{3,}/.test(candidate)) { mae = candidate; break; }
+        for (let i = 0; i < linhasTxt.length; i++) {
+          if (/NOME\s+DA\s+M[ÃA]E/i.test(linhasTxt[i])) {
+            const partes = [];
+            for (let j = i + 1; j < linhasTxt.length && partes.length < 3; j++) {
+              const nxt = linhasTxt[j].trim();
+              if (!nxt) continue;
+              if (/^\d/.test(nxt)) break;  /* começou a coluna numérica (CPF) */
+              partes.push(nxt);
+            }
+            mae = partes.join(' ').trim();
+            break;
           }
         }
 
@@ -2293,12 +2345,20 @@ function carregarCertidaoExistente(input) {
           }
         }
 
-        /* ── Admissão: linha que contém o CPF também tem a data de admissão ── */
+        /* ── Admissão: primeira data dd/mm/aaaa que aparece logo após o PIS no
+           texto — mais robusto do que procurar uma linha que contenha o CPF
+           inteiro, que pode não existir quando a célula quebrou em 2 linhas. ── */
         let admissao = '';
-        for (const l of linhasTxt) {
-          if (cpf && l.includes(cpf)) {
-            const datas = [...l.matchAll(/(\d{2}\/\d{2}\/\d{4})/g)].map(x => x[1]);
-            if (datas.length) { admissao = datas[0]; break; }
+        if (pisFimIdx >= 0) {
+          const mA0 = txt.slice(pisFimIdx).match(/(\d{2}\/\d{2}\/\d{4})/);
+          if (mA0) admissao = mA0[1];
+        }
+        if (!admissao) {
+          for (const l of linhasTxt) {
+            if (cpf && l.includes(cpf)) {
+              const datas = [...l.matchAll(/(\d{2}\/\d{2}\/\d{4})/g)].map(x => x[1]);
+              if (datas.length) { admissao = datas[0]; break; }
+            }
           }
         }
         if (!admissao) {
@@ -2327,9 +2387,21 @@ function carregarCertidaoExistente(input) {
         }
 
         /* ── N.º da certidão ── */
-        /* O Tesseract pode gerar N.° / N.o / N.0 / N? / N.º — usar regex ampla */
-        const ctcM2 = txt.match(/\bN[^0-9\n]{0,6}(\d{6}[\w\/\-]+)/i);
-        const ctc   = ctcM2 ? ctcM2[1] : '';
+        /* O regex antigo exigia 6 dígitos (\d{6}), mas o número real pode ter
+           menos (ex.: "00078" tem 5) — por isso o campo sempre ficava vazio.
+           Ancorar na linha "REFERENTE" evita pegar outro número qualquer do
+           documento (ex.: matrícula, CNPJ) por engano. */
+        let ctc = '';
+        const linhaCTC = linhasTxt.find(l => /REFERENTE/i.test(l))
+                       || linhasTxt.find(l => /CERTID[AÃ]O.*CONTRIBUI/i.test(l));
+        if (linhaCTC) {
+          const mCtc = linhaCTC.match(/N[^0-9\n]{0,6}(\d{2,8}[\w\/\-]*)/i);
+          if (mCtc) ctc = mCtc[1];
+        }
+        if (!ctc) {
+          const ctcFallback = txt.match(/\b(\d{2,8}\/[A-Z]{2,10}-[A-Z]{2,10}\/\d{4})\b/i);
+          if (ctcFallback) ctc = ctcFallback[1];
+        }
 
         /* ── Período ── */
         const periodoM = txt.match(/PERIODO[^:]*?:\s*(\d{2}\/\d{2}\/\d{4})\s+A\s+(\d{2}\/\d{2}\/\d{4})/i)
@@ -2399,9 +2471,28 @@ function carregarCertidaoExistente(input) {
           S.contrib[a].dec13 = { desc:0, aliq:aliqHistorica(a,11), vc:0 };
         });
 
-        /* ── Parsear linhas da tabela ── */
+        /* ── Parsear linhas da tabela ──
+           Cada página do PDF traz sua própria tabela, com seu próprio cabeçalho
+           "ANO: NNNN  ANO: NNNN  ..." acima das linhas de meses. O índice da coluna
+           (token) só corresponde ao ano correto DENTRO daquele bloco — não se pode
+           assumir que a 1ª coluna de toda e qualquer linha é sempre o 1º ano do
+           período (isso jogava os valores de 2014+ nas colunas de 2008-2013). */
+        let anosBlocoAtual = anos.slice(0, 6);  /* fallback antes do 1º cabeçalho encontrado */
+
         linhas.forEach(linha => {
           const norm = linha.replace(/\s+/g,' ').trim();
+
+          /* Cabeçalho de bloco de anos (ex.: "ANO: 2008 ANO: 2009 ANO: 2010 ...") */
+          if (/AN[O0Q]/i.test(norm)) {
+            const anosDetectados = [...norm.matchAll(/(\d{4})/g)]
+              .map(m => parseInt(m[1], 10))
+              .filter(a => a >= 1990 && a <= 2035);
+            if (anosDetectados.length >= 1) {
+              anosBlocoAtual = anosDetectados;
+              return;  /* linha de cabeçalho — não contém valores de mês */
+            }
+          }
+
           /* Normalizar: remover acentos, lowercase */
           const semAcento = norm.normalize('NFD')
                                .replace(/[\u0300-\u036f]/g,'')
@@ -2441,8 +2532,9 @@ function carregarCertidaoExistente(input) {
           const miLocal = isDec13 ? 11 : mkAnos.indexOf(mesKey);
 
           tokens.forEach((tok, i) => {
-            if (i >= anos.length) return;
-            const ano = anos[i];
+            if (i >= anosBlocoAtual.length) return;
+            const ano = anosBlocoAtual[i];
+            if (!anos.includes(ano)) return;  /* ano fora do período da certidão */
             const vc  = parseVC(tok);
             if (vc === 0) return;  /* zero ou traço → pular */
 
