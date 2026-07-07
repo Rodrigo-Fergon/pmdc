@@ -167,8 +167,8 @@ table.rev .vc-col{color:var(--accent2);font-weight:600;}
 .cert-subtitulo{font-size:11.5pt;text-align:center;margin-bottom:.8rem;}
 .cert-ficha{border:1px solid #999;padding:.4rem .6rem;margin-bottom:.7rem;}
 .cert-ficha table{width:100%;border-collapse:collapse;table-layout:auto;}
-.cert-ficha td{padding:3px 6px;vertical-align:middle;font-size:11pt;border:1px solid #ccc;}
-.cert-ficha td.lb{background:#f0f0f0;color:#222;white-space:nowrap;font-size:10.5pt;}
+.cert-ficha td{padding:3px 6px;vertical-align:middle;font-size:10.5pt;border:1px solid #ccc;}
+.cert-ficha td.lb{background:#f0f0f0;color:#222;white-space:nowrap;}
 .cert-ficha td.vl{font-weight:bold;}
 table.ctb{width:100%;border-collapse:collapse;font-size:10pt;margin-bottom:.5rem;table-layout:fixed;}
 table.ctb th.mes-h{width:16%;}
@@ -2531,12 +2531,31 @@ function carregarCertidaoExistente(input) {
 
           const miLocal = isDec13 ? 11 : mkAnos.indexOf(mesKey);
 
+          /* Quando a linha tem MENOS valores do que colunas de anos no bloco
+             (ex.: servidor admitido no meio do 1º ano da tabela, então
+             Janeiro-Agosto daquele ano não têm valor), os valores presentes
+             correspondem sempre aos anos MAIS RECENTES do bloco — o(s) ano(s)
+             sem valor ficam à ESQUERDA (mais antigos), nunca à direita.
+             Por isso o deslocamento (offset) é aplicado a partir do fim. */
+          const offset = anosBlocoAtual.length - tokens.length;
+
           tokens.forEach((tok, i) => {
-            if (i >= anosBlocoAtual.length) return;
-            const ano = anosBlocoAtual[i];
+            const idx = offset + i;
+            if (idx < 0 || idx >= anosBlocoAtual.length) return;
+            const ano = anosBlocoAtual[idx];
             if (!anos.includes(ano)) return;  /* ano fora do período da certidão */
             const vc  = parseVC(tok);
             if (vc === 0) return;  /* zero ou traço → pular */
+
+            /* Novembro/2017: a alíquota mudou de 11% para 14% no meio do mês
+               (13 dias a 11% + 17 dias a 14%). O valor da CTC é o total do
+               mês já consolidado, sem essa quebra — por instrução do usuário,
+               vai direto para a linha "Novembro" agregada, sem mexer nas
+               linhas "Novembro (13 dias)"/"Novembro (17 dias)". */
+            if (!isDec13 && ano === 2017 && mesKey === 'nov') {
+              S.contrib[ano].nov = { desc: 0, aliq: null, vc, _fromCTC: true };
+              return;
+            }
 
             const aliq = aliqHistorica(ano, miLocal);
             if (!aliq) return;
@@ -4117,7 +4136,11 @@ function renderTabelaRevisao() {
       if (ano === 2017 && mi === 10) {
         const n11 = S.contrib[2017]?.['nov_11'] || {desc:0,aliq:11,vc:0};
         const n14 = S.contrib[2017]?.['nov_14'] || {desc:0,aliq:14,vc:0};
-        const totN = (n11.vc||0) + (n14.vc||0);
+        const novCTC = S.contrib[2017]?.['nov'];
+        /* Quando o valor de novembro veio direto de uma certidão (CTC) já
+           consolidado, exibir esse valor na linha "Novembro" agregada em vez
+           de somar nov_11+nov_14 (que ficam zeradas nesse fluxo). */
+        const totN = (novCTC && novCTC._fromCTC) ? (novCTC.vc || 0) : ((n11.vc||0) + (n14.vc||0));
         totVC += totN;
         html += `<tr>
           <td class="mes">Novembro <small>(13 dias)</small></td>
@@ -4551,9 +4574,13 @@ function editarRev(cell) {
 function recalcTotalAno(ano) {
   const aN = parseInt(ano);
   let tot = 0;
+  const novCTC2017 = S.contrib[2017]?.['nov'];
   MESES_KEY.forEach((m,mi) => {
-    if (mi===10 && aN===2017)
-      tot += (S.contrib[ano]?.['nov_11']?.vc||0) + (S.contrib[ano]?.['nov_14']?.vc||0);
+    if (mi===10 && aN===2017) {
+      tot += (novCTC2017 && novCTC2017._fromCTC)
+        ? (novCTC2017.vc || 0)
+        : (S.contrib[ano]?.['nov_11']?.vc||0) + (S.contrib[ano]?.['nov_14']?.vc||0);
+    }
     else if (m!=='nov'||aN!==2017)
       tot += S.contrib[ano]?.[m]?.vc||0;
   });
@@ -4655,7 +4682,10 @@ async function gerarCertidao() {
         if (!isDec13 && a===anoFim && mi>mesFim){ h+=`<td class="val-dash"></td>`; return; }
         if (isDec13 && a===anoFim && mesFim < 11){ h+=`<td class="val-dash"></td>`; return; }
         if (mi===10 && a===2017) {
-          const t=(S.contrib[2017]?.['nov_11']?.vc||0)+(S.contrib[2017]?.['nov_14']?.vc||0);
+          const novCTC = S.contrib[2017]?.['nov'];
+          const t = (novCTC && novCTC._fromCTC)
+            ? (novCTC.vc || 0)
+            : (S.contrib[2017]?.['nov_11']?.vc||0)+(S.contrib[2017]?.['nov_14']?.vc||0);
           h+=`<td class="val-c" contenteditable="true" data-uid="2017_nov" data-campo="vc" onblur="editarCtbVC(this)">${t?fmtBR(t):'—'}</td>`;
           return;
         }
@@ -4719,9 +4749,9 @@ async function gerarCertidao() {
     </tr>
     <tr>
       <td class="vl" style="text-transform:uppercase;">${ce('mae',d.mae,'Nome da Mãe','200px')}</td>
-      <td class="vl">${ce('cpf',d.cpf,'','110px')}</td>
-      <td class="vl">${ce('pis',d.pis,'','110px')}</td>
-      <td class="vl">${ce('adm',admDisplay,'dd/mm/aaaa','90px')}</td>
+      <td class="vl" style="white-space:nowrap;">${ce('cpf',d.cpf,'','110px')}</td>
+      <td class="vl" style="white-space:nowrap;">${ce('pis',d.pis,'','110px')}</td>
+      <td class="vl" style="white-space:nowrap;">${ce('adm',admDisplay,'dd/mm/aaaa','90px')}</td>
     </tr>
     <tr>
       <td class="lb"><strong>CARGO / FUNÇÃO</strong></td>
@@ -4735,7 +4765,7 @@ async function gerarCertidao() {
       <td class="lb" colspan="4"><strong>PERÍODO DE CONTRIBUIÇÃO COMPREENDIDO NESTA CERTIDÃO:</strong>
         ${ce('periodo',periodoTexto,'dd/mm/aaaa A dd/mm/aaaa','280px')}</td>
     </tr>
-    ${finalidade ? `<tr><td colspan="4" style="background:#fff;color:#000;font-size:10.5pt;white-space:nowrap;"><strong>FINALIDADE:</strong> <span class="ce" contenteditable="true" id="ce-finalidade" style="min-width:200px">${finalidade}</span></td></tr>` : ''}
+    ${finalidade ? `<tr><td colspan="4" style="background:#fff;color:#000;"><strong>FINALIDADE:</strong> <span class="ce" contenteditable="true" id="ce-finalidade" style="min-width:200px">${finalidade}</span></td></tr>` : ''}
   </table></div>`;
 
   grupos.forEach(g => { html += blocoTabela(g); });
@@ -4918,8 +4948,13 @@ function editarCtbVC(cell) {
 }
 function recalcTotalCert(ano) {
   const aN=parseInt(ano); let tot=0;
+  const novCTC2017 = S.contrib[2017]?.['nov'];
   MESES_KEY.forEach((m,mi)=>{
-    if(mi===10&&aN===2017) tot+=(S.contrib[ano]?.['nov_11']?.vc||0)+(S.contrib[ano]?.['nov_14']?.vc||0);
+    if(mi===10&&aN===2017) {
+      tot += (novCTC2017 && novCTC2017._fromCTC)
+        ? (novCTC2017.vc || 0)
+        : (S.contrib[ano]?.['nov_11']?.vc||0)+(S.contrib[ano]?.['nov_14']?.vc||0);
+    }
     else if(m!=='nov'||aN!==2017) tot+=S.contrib[ano]?.[m]?.vc||0;
   });
   const el=document.getElementById(`ctot-${ano}`);
@@ -5260,7 +5295,10 @@ function exportarXLS() {
         if (skip) { sc(row,c0,'-',ST.tdDsh); merge(row,c0,row,c0+7); return; }
         let vcVal = 0;
         if (mi===10 && a===2017) {
-          vcVal = (S.contrib[2017]?.['nov_11']?.vc||0)+(S.contrib[2017]?.['nov_14']?.vc||0);
+          const novCTC = S.contrib[2017]?.['nov'];
+          vcVal = (novCTC && novCTC._fromCTC)
+            ? (novCTC.vc || 0)
+            : (S.contrib[2017]?.['nov_11']?.vc||0)+(S.contrib[2017]?.['nov_14']?.vc||0);
         } else {
           const cEntry = S.contrib[a]?.[m];
           vcVal = cEntry?.vc || 0;
