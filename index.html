@@ -171,10 +171,10 @@ table.rev .vc-col{color:var(--accent2);font-weight:600;}
 .cert-ficha td.lb{background:#f0f0f0;color:#222;white-space:nowrap;}
 .cert-ficha td.vl{font-weight:bold;}
 table.ctb{width:100%;border-collapse:collapse;font-size:10pt;margin-bottom:.5rem;table-layout:fixed;}
-table.ctb th.mes-h{width:16%;}
-table.ctb th.ano-h,table.ctb th.val-h{width:14%;}
-table.ctb th.ano-h{background:#bbb;border:1px solid #888;padding:3px 5px;text-align:center;font-size:10.5pt;text-transform:uppercase;font-weight:bold;}
-table.ctb th.val-h{background:#d4d4d4;border:1px solid #888;padding:3px 5px;text-align:center;font-size:10pt;font-weight:bold;}
+table.ctb th.mes-h{width:18%;}
+table.ctb th.ano-h,table.ctb th.val-h{width:11.7%;}
+table.ctb th.ano-h{background:#bbb;border:1px solid #888;padding:3px 5px;text-align:center;font-size:9.5pt;text-transform:uppercase;font-weight:bold;}
+table.ctb th.val-h{background:#d4d4d4;border:1px solid #888;padding:3px 5px;text-align:center;font-size:9.5pt;font-weight:bold;}
 table.ctb th.mes-h{background:#d4d4d4;border:1px solid #888;padding:3px 5px;text-align:left;font-weight:bold;}
 /* Colunas de preenchimento (anos "vazios" para manter a largura das colunas igual em todos os blocos) */
 table.ctb th.ano-h-pad,table.ctb th.val-h-pad{background:#e8e8e8;border:1px solid #ccc;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
@@ -4640,7 +4640,7 @@ async function gerarCertidao() {
   const anos   = []; for (let a=anoIni;a<=anoFim;a++) anos.push(a);
 
   /* ── Tabela de contribuições — 6 anos por bloco, só coluna VALOR ── */
-  const MAXCOLS_ANO = 6; /* mesmo valor usado no agrupamento "grupos" abaixo */
+  const MAXCOLS_ANO = 7; /* mesmo valor usado no agrupamento "grupos" abaixo */
   function blocoTabela(bloco) {
     const nA = bloco.length;
     const padCols = MAXCOLS_ANO - nA; /* colunas "vazias" para manter a largura igual entre blocos */
