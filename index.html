@@ -2300,7 +2300,15 @@ function carregarCertidaoExistente(input) {
             for (let j = i + 1; j < linhasTxt.length && partes.length < 3; j++) {
               const nxt = linhasTxt[j].trim();
               if (!nxt) continue;
-              if (/^\d/.test(nxt)) break;  /* começou a coluna numérica (CPF) */
+              if (/^\d/.test(nxt)) break;  /* linha já começa com dígito (CPF) */
+              /* Quando o nome é curto e NÃO quebra linha, CPF/PIS/admissão
+                 ficam colados na mesma linha do nome (ex.: "MARIA LUISA
+                 OBANDO 610.090.247-87 ..."). Nesse caso, pegar só a parte
+                 de letras (até a 1ª transição letra→dígito) e parar aqui —
+                 sem isso, o loop continuava "comendo" as linhas seguintes
+                 (CARGO/FUNÇÃO, cargo, etc.) por engano. */
+              const comDigito = nxt.match(/^([A-ZÀ-Ý\s]+?)(?=\s+\d)/);
+              if (comDigito) { partes.push(comDigito[1].trim()); break; }
               partes.push(nxt);
             }
             mae = partes.join(' ').trim();
@@ -4641,6 +4649,20 @@ async function gerarCertidao() {
 
   /* ── Tabela de contribuições — 6 anos por bloco, só coluna VALOR ── */
   const MAXCOLS_ANO = 7; /* mesmo valor usado no agrupamento "grupos" abaixo */
+
+  /* Alguns valores históricos (moeda antiga, pré-Plano Real de 1994) podem ter
+     bem mais dígitos que o normal (ex.: "18.791.582,80"). Nesses casos raros,
+     reduzir a fonte só daquela célula específica evita que o número quebre em
+     duas linhas — sem precisar diminuir a fonte de toda a tabela por causa de
+     poucos valores fora do padrão. */
+  function estiloValor(txt) {
+    const len = (txt || '').length;
+    if (len >= 15) return ' style="white-space:nowrap;font-size:7pt;"';
+    if (len >= 13) return ' style="white-space:nowrap;font-size:8.5pt;"';
+    if (len >= 12) return ' style="white-space:nowrap;font-size:9pt;"';
+    return ' style="white-space:nowrap;"';
+  }
+
   function blocoTabela(bloco) {
     const nA = bloco.length;
     const padCols = MAXCOLS_ANO - nA; /* colunas "vazias" para manter a largura igual entre blocos */
@@ -4686,7 +4708,8 @@ async function gerarCertidao() {
           const t = (novCTC && novCTC._fromCTC)
             ? (novCTC.vc || 0)
             : (S.contrib[2017]?.['nov_11']?.vc||0)+(S.contrib[2017]?.['nov_14']?.vc||0);
-          h+=`<td class="val-c" contenteditable="true" data-uid="2017_nov" data-campo="vc" onblur="editarCtbVC(this)">${t?fmtBR(t):'—'}</td>`;
+          const txtNov = t?fmtBR(t):'—';
+          h+=`<td class="val-c"${estiloValor(txtNov)} contenteditable="true" data-uid="2017_nov" data-campo="vc" onblur="editarCtbVC(this)">${txtNov}</td>`;
           return;
         }
         const c = S.contrib[a]?.[m];
@@ -4694,7 +4717,8 @@ async function gerarCertidao() {
         /* Se vc está zerado mas desc e aliq existem, recalcular na hora */
         let vcExib = c?.vc || 0;
         if (!vcExib && c?.desc > 0 && c?.aliq > 0) vcExib = calcVC(c.desc, c.aliq);
-        h += `<td class="val-c" contenteditable="true" data-uid="${uid}" data-campo="vc" onblur="editarCtbVC(this)">${vcExib?fmtBR(vcExib):'—'}</td>`;
+        const txtVal = vcExib?fmtBR(vcExib):'—';
+        h += `<td class="val-c"${estiloValor(txtVal)} contenteditable="true" data-uid="${uid}" data-campo="vc" onblur="editarCtbVC(this)">${txtVal}</td>`;
       });
       for (let p=0; p<padCols; p++) h += `<td class="val-dash val-pad"></td>`;
       h += `</tr>`;
