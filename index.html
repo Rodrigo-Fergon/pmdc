@@ -353,6 +353,28 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
 #proc-msg{font-family:'Share Tech Mono',monospace;font-size:.78rem;color:var(--text3);margin-top:.4rem;}
 #ep-preview-parecer *{outline:none !important;}
+/* CONSULTA RÁPIDA — editor de notas */
+.cq-tb-btn{min-width:34px;height:32px;padding:0 .5rem;border-radius:6px;border:1px solid var(--border2);
+  background:linear-gradient(160deg,rgba(0,210,255,0.16),rgba(0,255,200,0.08));color:var(--white);
+  cursor:pointer;font-size:.85rem;transition:all .15s;}
+.cq-tb-btn:hover{background:linear-gradient(160deg,rgba(0,210,255,0.32),rgba(0,255,200,0.18));box-shadow:0 0 10px rgba(0,210,255,0.3);transform:translateY(-1px);}
+.cq-tb-select{height:32px;border-radius:6px;border:1px solid var(--border2);background:var(--panel2);color:var(--text);font-size:.78rem;padding:0 .4rem;cursor:pointer;}
+.cq-tb-sep{width:1px;height:22px;background:var(--border2);margin:0 .2rem;}
+.cq-tb-color-lbl{display:flex;align-items:center;gap:.25rem;height:32px;padding:0 .5rem;border-radius:6px;border:1px solid var(--border2);background:var(--panel2);cursor:pointer;font-size:.85rem;}
+.cq-tb-color-lbl input[type=color]{width:22px;height:22px;border:none;background:none;cursor:pointer;padding:0;}
+#cq-texto:focus,#cq-titulo:focus,#cq-busca:focus{outline:2px solid var(--accent);outline-offset:1px;}
+#cq-texto[contenteditable]:empty:before{content:'Comece a escrever sua nota…';color:var(--text3);}
+.cq-nota-card{border:1px solid var(--border);border-radius:8px;padding:.6rem .7rem;cursor:pointer;background:var(--panel2);transition:all .15s;border-left:4px solid var(--accent);}
+.cq-nota-card:hover{border-color:var(--border2);box-shadow:0 0 10px rgba(0,210,255,0.15);transform:translateX(2px);}
+.cq-nota-card.ativa{border-color:var(--accent2);box-shadow:0 0 12px rgba(0,255,200,0.25);}
+.cq-nota-titulo{font-weight:700;font-size:.86rem;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cq-nota-resumo{font-size:.72rem;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.15rem;}
+.cq-nota-data{font-size:.62rem;color:var(--text3);margin-top:.25rem;font-family:'Share Tech Mono',monospace;}
+@media print{
+  body *{visibility:hidden;}
+  #cq-print-area,#cq-print-area *{visibility:visible;}
+  #cq-print-area{position:absolute;top:0;left:0;width:100%;padding:2rem;color:#000;background:#fff;}
+}
 </style>
 </head>
 <body>
@@ -523,6 +545,85 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
       </div>
       <div id="usuarios-lista"></div>
       </div><!-- /body-lista-usuarios -->
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     TELA: CONSULTA RÁPIDA (Notas / Editor de Texto)
+══════════════════════════════════════════════════════ -->
+<div id="tela-consulta" style="display:none;position:relative;z-index:1;min-height:100vh;">
+  <div class="top-bar">
+    <button class="back-btn" onclick="voltarMenu()">← MENU</button>
+    <h2 style="font-family:'Rajdhani',sans-serif;font-size:1.1rem;letter-spacing:1px;">📝 Consulta Rápida</h2>
+  </div>
+
+  <div id="cq-wrap" style="display:flex;gap:1rem;padding:1rem 1.2rem;max-width:1500px;margin:0 auto;align-items:flex-start;">
+
+    <div id="cq-sidebar" style="flex:0 0 300px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:.9rem;position:sticky;top:1rem;">
+      <button id="cq-btn-nova" onclick="cqNovaNota()" style="width:100%;padding:.6rem;border-radius:8px;border:1px solid var(--accent2);background:rgba(0,255,200,0.12);color:var(--accent2);font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;letter-spacing:1px;margin-bottom:.8rem;">+ NOVA NOTA</button>
+
+      <input id="cq-busca" type="text" placeholder="🔎 Buscar por título ou conteúdo…" oninput="cqRenderLista()"
+        style="width:100%;padding:.55rem .7rem;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.85rem;margin-bottom:.8rem;">
+
+      <div id="cq-lista" style="display:flex;flex-direction:column;gap:.5rem;max-height:70vh;overflow-y:auto;"></div>
+      <p id="cq-vazio" style="display:none;color:var(--text3);font-size:.8rem;text-align:center;margin-top:1rem;">Nenhuma nota encontrada.</p>
+    </div>
+
+    <div id="cq-editor-col" style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:1rem;min-height:75vh;">
+      <div id="cq-sem-selecao" style="text-align:center;color:var(--text3);padding:4rem 1rem;font-size:.9rem;">
+        Selecione uma nota ao lado ou clique em <strong>+ NOVA NOTA</strong> para começar.
+      </div>
+
+      <div id="cq-editor-area" style="display:none;">
+        <input id="cq-titulo" type="text" placeholder="Título da nota…"
+          style="width:100%;padding:.6rem .8rem;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--white);font-family:'Rajdhani',sans-serif;font-size:1.15rem;font-weight:700;margin-bottom:.7rem;">
+
+        <div id="cq-toolbar" style="display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:.5rem;margin-bottom:.6rem;">
+          <button type="button" class="cq-tb-btn" onclick="cqCmd('bold')" title="Negrito" style="font-weight:900;">B</button>
+          <button type="button" class="cq-tb-btn" onclick="cqCmd('italic')" title="Itálico" style="font-style:italic;">I</button>
+          <button type="button" class="cq-tb-btn" onclick="cqCmd('underline')" title="Sublinhado" style="text-decoration:underline;">U</button>
+          <button type="button" class="cq-tb-btn" onclick="cqCmd('strikeThrough')" title="Tachado" style="text-decoration:line-through;">S</button>
+          <span class="cq-tb-sep"></span>
+          <select class="cq-tb-select" onchange="cqCmd('fontSize', this.value); this.selectedIndex=0;" title="Tamanho da fonte">
+            <option value="">Tamanho</option>
+            <option value="1">Pequeno</option>
+            <option value="3">Normal</option>
+            <option value="5">Grande</option>
+            <option value="7">Enorme</option>
+          </select>
+          <select class="cq-tb-select" onchange="cqCmd('formatBlock', this.value); this.selectedIndex=0;" title="Estilo de texto">
+            <option value="">Estilo</option>
+            <option value="P">Parágrafo</option>
+            <option value="H1">Título 1</option>
+            <option value="H2">Título 2</option>
+            <option value="H3">Título 3</option>
+            <option value="BLOCKQUOTE">Citação</option>
+          </select>
+          <span class="cq-tb-sep"></span>
+          <label class="cq-tb-color-lbl" title="Cor da letra">🎨<input type="color" id="cq-cor-letra" value="#00d2ff" onchange="cqCmd('foreColor', this.value)"></label>
+          <label class="cq-tb-color-lbl" title="Cor de fundo (marca-texto)">🖍️<input type="color" id="cq-cor-fundo" value="#fff176" onchange="cqCmd('hiliteColor', this.value)"></label>
+          <span class="cq-tb-sep"></span>
+          <button type="button" class="cq-tb-btn" onclick="cqCmd('justifyLeft')" title="Alinhar à esquerda">⯇</button>
+          <button type="button" class="cq-tb-btn" onclick="cqCmd('justifyCenter')" title="Centralizar">☰</button>
+          <button type="button" class="cq-tb-btn" onclick="cqCmd('justifyRight')" title="Alinhar à direita">⯈</button>
+          <button type="button" class="cq-tb-btn" onclick="cqCmd('insertUnorderedList')" title="Lista com marcadores">•≡</button>
+          <button type="button" class="cq-tb-btn" onclick="cqCmd('insertOrderedList')" title="Lista numerada">1≡</button>
+          <span class="cq-tb-sep"></span>
+          <button type="button" class="cq-tb-btn" onclick="cqCmd('undo')" title="Desfazer">↶</button>
+          <button type="button" class="cq-tb-btn" onclick="cqCmd('redo')" title="Refazer">↷</button>
+          <button type="button" class="cq-tb-btn" onclick="cqCmd('removeFormat')" title="Limpar formatação">🧹</button>
+        </div>
+
+        <div id="cq-texto" contenteditable="true" style="min-height:50vh;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.95rem;line-height:1.6;overflow-y:auto;"></div>
+
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.8rem;">
+          <button onclick="cqSalvarNota()" style="padding:.6rem 1.2rem;border-radius:8px;border:1px solid var(--accent2);background:rgba(0,255,200,0.15);color:var(--accent2);font-weight:700;cursor:pointer;">💾 SALVAR</button>
+          <button onclick="cqImprimirNota()" style="padding:.6rem 1.2rem;border-radius:8px;border:1px solid var(--accent);background:rgba(0,210,255,0.12);color:var(--accent);font-weight:700;cursor:pointer;">🖨️ IMPRIMIR</button>
+          <button onclick="cqExcluirNota()" id="cq-btn-excluir" style="display:none;padding:.6rem 1.2rem;border-radius:8px;border:1px solid var(--red);background:rgba(255,77,109,0.12);color:var(--red);font-weight:700;cursor:pointer;">🗑️ EXCLUIR</button>
+          <span id="cq-status-msg" style="align-self:center;font-size:.78rem;color:var(--text2);"></span>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -850,6 +951,15 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
       <div class="btn-inner">
         <span class="btn-icon">👥</span>
         <div class="btn-label">Usuários</div>
+        <span class="btn-tag">■ RESTRITO</span>
+      </div>
+    </div>
+    <div id="btn-menu-consulta" class="menu-btn" onclick="abrirConsultaRapida()" style="display:none;">
+      <div class="corner corner-tl"></div><div class="corner corner-tr"></div>
+      <div class="corner corner-bl"></div><div class="corner corner-br"></div>
+      <div class="btn-inner">
+        <span class="btn-icon">📝</span>
+        <div class="btn-label">Consulta Rápida</div>
         <span class="btn-tag">■ RESTRITO</span>
       </div>
     </div>
@@ -2786,7 +2896,7 @@ function voltarEditarCertidao() {
 function voltarMenu() {
   S.modoAlterar = false;
   ['tela-ctc','tela-parecer','tela-modalidades','tela-submodalidades',
-   'tela-despachos','tela-edicao-parecer','tela-usuarios','tela-log','tela-calculos','tela-trienio'].forEach(id => {
+   'tela-despachos','tela-edicao-parecer','tela-usuarios','tela-log','tela-calculos','tela-trienio','tela-consulta'].forEach(id => {
     const el = document.getElementById(id); if(el) el.style.display = 'none';
   });
   document.getElementById('tela-menu').style.display = 'flex';
@@ -6004,6 +6114,7 @@ const _MODULOS = [
   { id:'calc_nivel',    label:'↳ Mudança de Nível',     niveis:['operador','admin'] },
   { id:'chamados',      label:'Chamados',                niveis:['admin'] },
   { id:'usuarios',      label:'Gerenciar Usuários',      niveis:['admin'] },
+  { id:'consulta_rapida', label:'Consulta Rápida',       niveis:['admin','operador'] },
 ];
 
 function _permissoesDefault(nivel) {
@@ -6071,6 +6182,234 @@ function _temPermissao(modId) {
 
 function _bloquearAcesso(nomeModulo) {
   alert(`🔒 Acesso ao módulo "${nomeModulo}" não está habilitado para o seu usuário.\n\nContate o administrador do sistema.`);
+}
+
+/* ══════════════════════════════════════════════════════════
+   CONSULTA RÁPIDA — Notas pessoais (editor de texto rico)
+   Tabela Supabase: notas_rapidas
+   Colunas: id (bigint/identity), usuario_id (bigint), titulo (text),
+            conteudo (text/html), criado_em (timestamptz default now()),
+            atualizado_em (timestamptz)
+══════════════════════════════════════════════════════════ */
+let _cqNotas = [];
+let _cqNotaAtualId = null;
+let _cqSujo = false;
+
+// Master salva na nuvem (Supabase); demais níveis salvam só neste computador (localStorage).
+function _cqModoLocal() {
+  return !_sessaoAtual || _sessaoAtual.nivel !== 'master';
+}
+function _cqChaveLocal() {
+  return 'cq_notas_' + (_sessaoAtual ? _sessaoAtual.matricula : 'anon');
+}
+function _cqLerLocal() {
+  try { return JSON.parse(localStorage.getItem(_cqChaveLocal()) || '[]'); }
+  catch (e) { return []; }
+}
+function _cqGravarLocal(arr) {
+  localStorage.setItem(_cqChaveLocal(), JSON.stringify(arr));
+}
+
+async function abrirConsultaRapida() {
+  if (!_sessaoAtual || !(_sessaoAtual.nivel === 'master' || _temPermissao('consulta_rapida'))) {
+    _bloquearAcesso('Consulta Rápida');
+    return;
+  }
+  document.getElementById('tela-menu').style.display     = 'none';
+  document.getElementById('tela-consulta').style.display = 'block';
+  document.getElementById('cq-busca').value = '';
+  _cqNotaAtualId = null;
+  cqFecharEditor();
+  await cqCarregarNotas();
+  const aviso = document.getElementById('cq-status-msg');
+  if (aviso) aviso.textContent = _cqModoLocal() ? '💻 Notas salvas apenas neste computador.' : '☁️ Notas salvas na nuvem.';
+}
+
+async function cqCarregarNotas() {
+  if (_cqModoLocal()) {
+    _cqNotas = _cqLerLocal().sort((a,b) => (b.atualizado_em||'').localeCompare(a.atualizado_em||''));
+    cqRenderLista();
+    return;
+  }
+  try {
+    const arr = await sbGet('notas_rapidas', `usuario_id=eq.${_sessaoAtual.id}&order=atualizado_em.desc`);
+    _cqNotas = arr || [];
+  } catch (e) {
+    _cqNotas = [];
+    console.error('Erro ao carregar notas:', e);
+  }
+  cqRenderLista();
+}
+
+function cqRenderLista() {
+  const termo = (document.getElementById('cq-busca').value || '').toLowerCase().trim();
+  const lista = document.getElementById('cq-lista');
+  const vazio = document.getElementById('cq-vazio');
+  const filtradas = !termo ? _cqNotas : _cqNotas.filter(n => {
+    const t = (n.titulo || '').toLowerCase();
+    const c = (n.conteudo || '').replace(/<[^>]*>/g, ' ').toLowerCase();
+    return t.includes(termo) || c.includes(termo);
+  });
+
+  lista.innerHTML = '';
+  vazio.style.display = filtradas.length === 0 ? 'block' : 'none';
+
+  filtradas.forEach(n => {
+    const resumo = (n.conteudo || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    const dataFmt = n.atualizado_em ? new Date(n.atualizado_em).toLocaleString('pt-BR') : '';
+    const card = document.createElement('div');
+    card.className = 'cq-nota-card' + (n.id === _cqNotaAtualId ? ' ativa' : '');
+    card.onclick = () => cqSelecionarNota(n.id);
+    card.innerHTML = `
+      <div class="cq-nota-titulo">${escHtml(n.titulo || '(Sem título)')}</div>
+      <div class="cq-nota-resumo">${escHtml(resumo.slice(0,80) || 'Nota vazia…')}</div>
+      <div class="cq-nota-data">🕒 ${dataFmt}</div>`;
+    lista.appendChild(card);
+  });
+}
+
+function cqFecharEditor() {
+  document.getElementById('cq-sem-selecao').style.display = 'block';
+  document.getElementById('cq-editor-area').style.display = 'none';
+}
+
+function cqNovaNota() {
+  _cqNotaAtualId = null;
+  _cqSujo = false;
+  document.getElementById('cq-sem-selecao').style.display = 'none';
+  document.getElementById('cq-editor-area').style.display = 'block';
+  document.getElementById('cq-titulo').value = '';
+  document.getElementById('cq-texto').innerHTML = '';
+  document.getElementById('cq-btn-excluir').style.display = 'none';
+  document.getElementById('cq-status-msg').textContent = 'Nova nota — ainda não salva.';
+  cqRenderLista();
+  document.getElementById('cq-titulo').focus();
+}
+
+function cqSelecionarNota(id) {
+  const n = _cqNotas.find(x => x.id === id);
+  if (!n) return;
+  _cqNotaAtualId = id;
+  _cqSujo = false;
+  document.getElementById('cq-sem-selecao').style.display = 'none';
+  document.getElementById('cq-editor-area').style.display = 'block';
+  document.getElementById('cq-titulo').value = n.titulo || '';
+  document.getElementById('cq-texto').innerHTML = n.conteudo || '';
+  document.getElementById('cq-btn-excluir').style.display = 'inline-block';
+  document.getElementById('cq-status-msg').textContent = '';
+  cqRenderLista();
+}
+
+function cqCmd(comando, valor) {
+  document.getElementById('cq-texto').focus();
+  try { document.execCommand(comando, false, valor || null); } catch (e) {}
+}
+
+async function cqSalvarNota() {
+  const titulo   = document.getElementById('cq-titulo').value.trim();
+  const conteudo = document.getElementById('cq-texto').innerHTML;
+  const msgEl    = document.getElementById('cq-status-msg');
+
+  if (!titulo) {
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = '⚠️ Dê um título para a nota antes de salvar.';
+    return;
+  }
+
+  msgEl.style.color = 'var(--text2)';
+  msgEl.textContent = 'Salvando…';
+
+  if (_cqModoLocal()) {
+    try {
+      const agora = new Date().toISOString();
+      if (_cqNotaAtualId) {
+        const idx = _cqNotas.findIndex(n => n.id === _cqNotaAtualId);
+        if (idx > -1) { _cqNotas[idx].titulo = titulo; _cqNotas[idx].conteudo = conteudo; _cqNotas[idx].atualizado_em = agora; }
+      } else {
+        const nova = { id: 'local_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
+          titulo, conteudo, criado_em: agora, atualizado_em: agora };
+        _cqNotas.unshift(nova);
+        _cqNotaAtualId = nova.id;
+        document.getElementById('cq-btn-excluir').style.display = 'inline-block';
+      }
+      _cqGravarLocal(_cqNotas);
+      msgEl.style.color = 'var(--accent2)';
+      msgEl.textContent = '✅ Nota salva neste computador.';
+      cqRenderLista();
+    } catch (e) {
+      console.error(e);
+      msgEl.style.color = 'var(--red)';
+      msgEl.textContent = '❌ Erro ao salvar localmente.';
+    }
+    return;
+  }
+
+  try {
+    if (_cqNotaAtualId) {
+      const upd = await sbPatch('notas_rapidas', `id=eq.${_cqNotaAtualId}`, {
+        titulo, conteudo, atualizado_em: new Date().toISOString()
+      });
+      const idx = _cqNotas.findIndex(n => n.id === _cqNotaAtualId);
+      if (idx > -1 && upd[0]) _cqNotas[idx] = upd[0];
+    } else {
+      const ins = await sbPost('notas_rapidas', {
+        usuario_id: _sessaoAtual.id, titulo, conteudo,
+        criado_em: new Date().toISOString(), atualizado_em: new Date().toISOString()
+      });
+      if (ins[0]) {
+        _cqNotas.unshift(ins[0]);
+        _cqNotaAtualId = ins[0].id;
+        document.getElementById('cq-btn-excluir').style.display = 'inline-block';
+      }
+    }
+    _cqSujo = false;
+    msgEl.style.color = 'var(--accent2)';
+    msgEl.textContent = '✅ Nota salva na nuvem.';
+    cqRenderLista();
+  } catch (e) {
+    console.error(e);
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = '❌ Erro ao salvar. Tente novamente.';
+  }
+}
+
+async function cqExcluirNota() {
+  if (!_cqNotaAtualId) return;
+  if (!confirm('Excluir esta nota definitivamente? Essa ação não pode ser desfeita.')) return;
+
+  if (_cqModoLocal()) {
+    _cqNotas = _cqNotas.filter(n => n.id !== _cqNotaAtualId);
+    _cqGravarLocal(_cqNotas);
+    _cqNotaAtualId = null;
+    cqFecharEditor();
+    cqRenderLista();
+    return;
+  }
+
+  try {
+    await sbDelete('notas_rapidas', `id=eq.${_cqNotaAtualId}`);
+    _cqNotas = _cqNotas.filter(n => n.id !== _cqNotaAtualId);
+    _cqNotaAtualId = null;
+    cqFecharEditor();
+    cqRenderLista();
+  } catch (e) {
+    console.error(e);
+    alert('❌ Erro ao excluir a nota.');
+  }
+}
+
+function cqImprimirNota() {
+  const titulo   = document.getElementById('cq-titulo').value.trim() || 'Nota';
+  const conteudo = document.getElementById('cq-texto').innerHTML;
+  let area = document.getElementById('cq-print-area');
+  if (!area) {
+    area = document.createElement('div');
+    area.id = 'cq-print-area';
+    area.style.display = 'none';
+    document.body.appendChild(area);
+  }
+  area.innerHTML = `<h1 style="font-family:Arial,sans-serif;">${escHtml(titulo)}</h1><div style="font-family:Arial,sans-serif;line-height:1.6;">${conteudo}</div>`;
+  window.print();
 }
 
 /* ── Log de acessos ── */
@@ -6175,6 +6514,7 @@ function atualizarMenuPorNivel() {
     { elId: 'btn-menu-calculos',   modId: 'calculos' },
     { elId: 'btn-menu-usuarios',   modId: 'usuarios' },
     { elId: 'btn-menu-chamados',   modId: 'chamados' },
+    { elId: 'btn-menu-consulta',   modId: 'consulta_rapida' },
   ];
 
   const mapaCalc = [
