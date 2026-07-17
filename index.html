@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistema PMDC – Prefeitura de Duque de Caxias</title>
-<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Patrick+Hand&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -354,16 +354,49 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
 #proc-msg{font-family:'Share Tech Mono',monospace;font-size:.78rem;color:var(--text3);margin-top:.4rem;}
 #ep-preview-parecer *{outline:none !important;}
 /* CONSULTA RÁPIDA — editor de notas */
-.cq-tb-btn{min-width:34px;height:32px;padding:0 .5rem;border-radius:6px;border:1px solid var(--border2);
-  background:linear-gradient(160deg,rgba(0,210,255,0.16),rgba(0,255,200,0.08));color:var(--white);
-  cursor:pointer;font-size:.85rem;transition:all .15s;}
-.cq-tb-btn:hover{background:linear-gradient(160deg,rgba(0,210,255,0.32),rgba(0,255,200,0.18));box-shadow:0 0 10px rgba(0,210,255,0.3);transform:translateY(-1px);}
-.cq-tb-select{height:32px;border-radius:6px;border:1px solid var(--border2);background:var(--panel2);color:var(--text);font-size:.78rem;padding:0 .4rem;cursor:pointer;}
-.cq-tb-sep{width:1px;height:22px;background:var(--border2);margin:0 .2rem;}
-.cq-tb-color-lbl{display:flex;align-items:center;gap:.25rem;height:32px;padding:0 .5rem;border-radius:6px;border:1px solid var(--border2);background:var(--panel2);cursor:pointer;font-size:.85rem;}
-.cq-tb-color-lbl input[type=color]{width:22px;height:22px;border:none;background:none;cursor:pointer;padding:0;}
+.cq-tb-btn{min-width:36px;height:34px;padding:0 .55rem;border-radius:8px;border:1px solid rgba(255,255,255,0.18);
+  background:linear-gradient(160deg,#2a3550,#1c2436);color:#fff;
+  cursor:pointer;font-size:.88rem;transition:all .15s;box-shadow:0 2px 0 rgba(0,0,0,.25);}
+.cq-tb-btn:hover{filter:brightness(1.25);transform:translateY(-1px);}
+.cq-tb-btn:active{transform:translateY(1px);box-shadow:none;}
+.cq-tb-btn.cq-c1{background:linear-gradient(160deg,#ff8fa3,#e8517a);}
+.cq-tb-btn.cq-c2{background:linear-gradient(160deg,#7ee8c8,#1fb99a);}
+.cq-tb-btn.cq-c3{background:linear-gradient(160deg,#8ec9ff,#3e7fd6);}
+.cq-tb-btn.cq-c4{background:linear-gradient(160deg,#ffd479,#f0a638);}
+.cq-tb-select{height:34px;border-radius:8px;border:1px solid rgba(255,255,255,0.18);background:#1c2436;color:#fff;font-size:.8rem;padding:0 .5rem;cursor:pointer;}
+.cq-tb-sep{width:1px;height:24px;background:rgba(255,255,255,0.15);margin:0 .3rem;}
+.cq-tb-color-lbl{display:flex;align-items:center;gap:.3rem;height:34px;padding:0 .55rem;border-radius:8px;border:1px solid rgba(255,255,255,0.18);background:#1c2436;cursor:pointer;font-size:.9rem;}
+.cq-tb-color-lbl input[type=color]{width:24px;height:24px;border:none;background:none;cursor:pointer;padding:0;border-radius:5px;overflow:hidden;}
+
+/* Título da nota — aba de caderno */
+#cq-titulo{font-family:'Patrick Hand',cursive;}
+
+/* Caderno com espiral */
+.cq-notebook{position:relative;border-radius:12px;overflow:hidden;
+  box-shadow:0 10px 28px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.06);
+  background:#e9ecf1;padding-left:40px;}
+.cq-notebook::before{content:'';position:absolute;left:0;top:0;bottom:0;width:40px;
+  background-color:#c3cad4;
+  background-image:radial-gradient(circle at 20px 22px, #f5f7fa 0 7px, transparent 8px);
+  background-size:40px 44px;background-repeat:repeat-y;
+  border-right:2px dashed rgba(0,0,0,.18);z-index:2;}
+#cq-texto{
+  background-color:#fffdf6;
+  background-image:
+    linear-gradient(90deg, transparent 0 46px, #f3a0ac 46px 48px, transparent 48px 100%),
+    repeating-linear-gradient(#fffdf6 0 35px, #fffdf6 35px, #d7e3f4 36px);
+  color:#2c2c2c !important;
+  font-family:'Patrick Hand',cursive;
+  font-size:1.15rem;
+  line-height:36px;
+  padding:12px 24px 12px 64px;
+  min-height:55vh;
+  border:none;
+  border-radius:0;
+  overflow-y:auto;
+}
 #cq-texto:focus,#cq-titulo:focus,#cq-busca:focus{outline:2px solid var(--accent);outline-offset:1px;}
-#cq-texto[contenteditable]:empty:before{content:'Comece a escrever sua nota…';color:var(--text3);}
+#cq-texto[contenteditable]:empty:before{content:'Comece a escrever sua nota…';color:#b3aca0;}
 .cq-nota-card{border:1px solid var(--border);border-radius:8px;padding:.6rem .7rem;cursor:pointer;background:var(--panel2);transition:all .15s;border-left:4px solid var(--accent);}
 .cq-nota-card:hover{border-color:var(--border2);box-shadow:0 0 10px rgba(0,210,255,0.15);transform:translateX(2px);}
 .cq-nota-card.ativa{border-color:var(--accent2);box-shadow:0 0 12px rgba(0,255,200,0.25);}
@@ -580,19 +613,19 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
           style="width:100%;padding:.6rem .8rem;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--white);font-family:'Rajdhani',sans-serif;font-size:1.15rem;font-weight:700;margin-bottom:.7rem;">
 
         <div id="cq-toolbar" style="display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:.5rem;margin-bottom:.6rem;">
-          <button type="button" class="cq-tb-btn" onclick="cqCmd('bold')" title="Negrito" style="font-weight:900;">B</button>
-          <button type="button" class="cq-tb-btn" onclick="cqCmd('italic')" title="Itálico" style="font-style:italic;">I</button>
-          <button type="button" class="cq-tb-btn" onclick="cqCmd('underline')" title="Sublinhado" style="text-decoration:underline;">U</button>
-          <button type="button" class="cq-tb-btn" onclick="cqCmd('strikeThrough')" title="Tachado" style="text-decoration:line-through;">S</button>
+          <button type="button" class="cq-tb-btn" onmousedown="event.preventDefault()" onclick="cqCmd('bold')" title="Negrito" style="font-weight:900;">B</button>
+          <button type="button" class="cq-tb-btn" onmousedown="event.preventDefault()" onclick="cqCmd('italic')" title="Itálico" style="font-style:italic;">I</button>
+          <button type="button" class="cq-tb-btn" onmousedown="event.preventDefault()" onclick="cqCmd('underline')" title="Sublinhado" style="text-decoration:underline;">U</button>
+          <button type="button" class="cq-tb-btn" onmousedown="event.preventDefault()" onclick="cqCmd('strikeThrough')" title="Tachado" style="text-decoration:line-through;">S</button>
           <span class="cq-tb-sep"></span>
-          <select class="cq-tb-select" onchange="cqCmd('fontSize', this.value); this.selectedIndex=0;" title="Tamanho da fonte">
+          <select class="cq-tb-select" onmousedown="cqSalvarSelecao()" onchange="cqCmd('fontSize', this.value); this.selectedIndex=0;" title="Tamanho da fonte">
             <option value="">Tamanho</option>
             <option value="1">Pequeno</option>
             <option value="3">Normal</option>
             <option value="5">Grande</option>
             <option value="7">Enorme</option>
           </select>
-          <select class="cq-tb-select" onchange="cqCmd('formatBlock', this.value); this.selectedIndex=0;" title="Estilo de texto">
+          <select class="cq-tb-select" onmousedown="cqSalvarSelecao()" onchange="cqCmd('formatBlock', this.value); this.selectedIndex=0;" title="Estilo de texto">
             <option value="">Estilo</option>
             <option value="P">Parágrafo</option>
             <option value="H1">Título 1</option>
@@ -601,21 +634,23 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
             <option value="BLOCKQUOTE">Citação</option>
           </select>
           <span class="cq-tb-sep"></span>
-          <label class="cq-tb-color-lbl" title="Cor da letra">🎨<input type="color" id="cq-cor-letra" value="#00d2ff" onchange="cqCmd('foreColor', this.value)"></label>
-          <label class="cq-tb-color-lbl" title="Cor de fundo (marca-texto)">🖍️<input type="color" id="cq-cor-fundo" value="#fff176" onchange="cqCmd('hiliteColor', this.value)"></label>
+          <label class="cq-tb-color-lbl cq-c1" title="Cor da letra">🎨<input type="color" id="cq-cor-letra" value="#e8517a" onmousedown="cqSalvarSelecao()" onchange="cqCmd('foreColor', this.value)"></label>
+          <label class="cq-tb-color-lbl cq-c4" title="Cor de fundo (marca-texto)">🖍️<input type="color" id="cq-cor-fundo" value="#fff176" onmousedown="cqSalvarSelecao()" onchange="cqCmd('hiliteColor', this.value)"></label>
           <span class="cq-tb-sep"></span>
-          <button type="button" class="cq-tb-btn" onclick="cqCmd('justifyLeft')" title="Alinhar à esquerda">⯇</button>
-          <button type="button" class="cq-tb-btn" onclick="cqCmd('justifyCenter')" title="Centralizar">☰</button>
-          <button type="button" class="cq-tb-btn" onclick="cqCmd('justifyRight')" title="Alinhar à direita">⯈</button>
-          <button type="button" class="cq-tb-btn" onclick="cqCmd('insertUnorderedList')" title="Lista com marcadores">•≡</button>
-          <button type="button" class="cq-tb-btn" onclick="cqCmd('insertOrderedList')" title="Lista numerada">1≡</button>
+          <button type="button" class="cq-tb-btn" onmousedown="event.preventDefault()" onclick="cqCmd('justifyLeft')" title="Alinhar à esquerda">⯇</button>
+          <button type="button" class="cq-tb-btn" onmousedown="event.preventDefault()" onclick="cqCmd('justifyCenter')" title="Centralizar">☰</button>
+          <button type="button" class="cq-tb-btn" onmousedown="event.preventDefault()" onclick="cqCmd('justifyRight')" title="Alinhar à direita">⯈</button>
+          <button type="button" class="cq-tb-btn cq-c2" onmousedown="event.preventDefault()" onclick="cqCmd('insertUnorderedList')" title="Lista com marcadores">•≡</button>
+          <button type="button" class="cq-tb-btn cq-c2" onmousedown="event.preventDefault()" onclick="cqCmd('insertOrderedList')" title="Lista numerada">1≡</button>
           <span class="cq-tb-sep"></span>
-          <button type="button" class="cq-tb-btn" onclick="cqCmd('undo')" title="Desfazer">↶</button>
-          <button type="button" class="cq-tb-btn" onclick="cqCmd('redo')" title="Refazer">↷</button>
-          <button type="button" class="cq-tb-btn" onclick="cqCmd('removeFormat')" title="Limpar formatação">🧹</button>
+          <button type="button" class="cq-tb-btn cq-c3" onmousedown="event.preventDefault()" onclick="cqCmd('undo')" title="Desfazer">↶</button>
+          <button type="button" class="cq-tb-btn cq-c3" onmousedown="event.preventDefault()" onclick="cqCmd('redo')" title="Refazer">↷</button>
+          <button type="button" class="cq-tb-btn" onmousedown="event.preventDefault()" onclick="cqCmd('removeFormat')" title="Limpar formatação">🧹</button>
         </div>
 
-        <div id="cq-texto" contenteditable="true" style="min-height:50vh;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.95rem;line-height:1.6;overflow-y:auto;"></div>
+        <div class="cq-notebook">
+          <div id="cq-texto" contenteditable="true"></div>
+        </div>
 
         <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.8rem;">
           <button onclick="cqSalvarNota()" style="padding:.6rem 1.2rem;border-radius:8px;border:1px solid var(--accent2);background:rgba(0,255,200,0.15);color:var(--accent2);font-weight:700;cursor:pointer;">💾 SALVAR</button>
@@ -6276,6 +6311,7 @@ function cqFecharEditor() {
 function cqNovaNota() {
   _cqNotaAtualId = null;
   _cqSujo = false;
+  _cqSavedRange = null;
   document.getElementById('cq-sem-selecao').style.display = 'none';
   document.getElementById('cq-editor-area').style.display = 'block';
   document.getElementById('cq-titulo').value = '';
@@ -6291,6 +6327,7 @@ function cqSelecionarNota(id) {
   if (!n) return;
   _cqNotaAtualId = id;
   _cqSujo = false;
+  _cqSavedRange = null;
   document.getElementById('cq-sem-selecao').style.display = 'none';
   document.getElementById('cq-editor-area').style.display = 'block';
   document.getElementById('cq-titulo').value = n.titulo || '';
@@ -6300,9 +6337,45 @@ function cqSelecionarNota(id) {
   cqRenderLista();
 }
 
+let _cqSavedRange = null;
+
+// Guarda continuamente a seleção enquanto o cursor está dentro da nota,
+// para que clicar em botões/menus da barra de ferramentas não a perca.
+document.addEventListener('selectionchange', () => {
+  const sel = window.getSelection();
+  const texto = document.getElementById('cq-texto');
+  if (!texto || sel.rangeCount === 0) return;
+  const range = sel.getRangeAt(0);
+  if (texto.contains(range.startContainer)) {
+    _cqSavedRange = range.cloneRange();
+  }
+});
+
+function cqSalvarSelecao() {
+  const sel = window.getSelection();
+  if (sel.rangeCount > 0) {
+    const texto = document.getElementById('cq-texto');
+    if (texto && texto.contains(sel.getRangeAt(0).startContainer)) {
+      _cqSavedRange = sel.getRangeAt(0).cloneRange();
+    }
+  }
+}
+
 function cqCmd(comando, valor) {
-  document.getElementById('cq-texto').focus();
+  const texto = document.getElementById('cq-texto');
+  texto.focus();
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  if (_cqSavedRange) {
+    sel.addRange(_cqSavedRange);
+  } else {
+    const r = document.createRange();
+    r.selectNodeContents(texto);
+    r.collapse(false);
+    sel.addRange(r);
+  }
   try { document.execCommand(comando, false, valor || null); } catch (e) {}
+  if (sel.rangeCount > 0) _cqSavedRange = sel.getRangeAt(0).cloneRange();
 }
 
 async function cqSalvarNota() {
