@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistema PMDC – Prefeitura de Duque de Caxias</title>
-<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Patrick+Hand&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Patrick+Hand&family=Caveat:wght@400;700&family=Indie+Flower&family=Shadows+Into+Light&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -632,6 +632,15 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
             <option value="H2">Título 2</option>
             <option value="H3">Título 3</option>
             <option value="BLOCKQUOTE">Citação</option>
+          </select>
+          <select class="cq-tb-select" onmousedown="cqSalvarSelecao()" onchange="cqCmd('fontName', this.value); this.selectedIndex=0;" title="Fonte da letra" style="font-family:inherit;">
+            <option value="">Fonte</option>
+            <option value="'Patrick Hand',cursive" style="font-family:'Patrick Hand',cursive;">Patrick Hand</option>
+            <option value="'Caveat',cursive" style="font-family:'Caveat',cursive;">Caveat</option>
+            <option value="'Indie Flower',cursive" style="font-family:'Indie Flower',cursive;">Indie Flower</option>
+            <option value="'Shadows Into Light',cursive" style="font-family:'Shadows Into Light',cursive;">Shadows Into Light</option>
+            <option value="'Times New Roman',Times,serif" style="font-family:'Times New Roman',serif;">Times New Roman</option>
+            <option value="Arial,Helvetica,sans-serif">Normal (digitação)</option>
           </select>
           <span class="cq-tb-sep"></span>
           <label class="cq-tb-color-lbl cq-c1" title="Cor da letra">🎨<input type="color" id="cq-cor-letra" value="#e8517a" onmousedown="cqSalvarSelecao()" onchange="cqCmd('foreColor', this.value)"></label>
