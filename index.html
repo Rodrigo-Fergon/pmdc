@@ -368,6 +368,21 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
 .cq-tb-color-lbl{display:flex;align-items:center;gap:.3rem;height:34px;padding:0 .55rem;border-radius:8px;border:1px solid rgba(255,255,255,0.18);background:#1c2436;cursor:pointer;font-size:.9rem;}
 .cq-tb-color-lbl input[type=color]{width:24px;height:24px;border:none;background:none;cursor:pointer;padding:0;border-radius:5px;overflow:hidden;}
 
+/* Seletor de cor em painel (paleta), no lugar do input RGB nativo */
+.cq-color-picker{position:relative;display:inline-block;}
+.cq-color-swatch-btn{display:flex;align-items:center;gap:.35rem;height:34px;padding:0 .6rem;border-radius:8px;
+  border:1px solid rgba(255,255,255,0.18);background:#1c2436;color:#fff;cursor:pointer;font-size:.85rem;}
+.cq-color-swatch-btn:hover{filter:brightness(1.2);}
+.cq-color-swatch-chip{width:16px;height:16px;border-radius:4px;border:1px solid rgba(255,255,255,.4);}
+.cq-color-panel{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:50;
+  background:#1c2436;border:1px solid rgba(255,255,255,0.18);border-radius:10px;padding:.6rem;
+  box-shadow:0 10px 24px rgba(0,0,0,.45);width:180px;}
+.cq-color-panel.aberto{display:block;}
+.cq-color-panel-title{font-size:.68rem;color:#aab4c8;margin-bottom:.4rem;font-family:'Rajdhani',sans-serif;letter-spacing:.5px;}
+.cq-color-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:.35rem;}
+.cq-color-dot{width:22px;height:22px;border-radius:6px;cursor:pointer;border:1px solid rgba(255,255,255,.25);transition:transform .1s;}
+.cq-color-dot:hover{transform:scale(1.18);border-color:#fff;}
+
 /* Título da nota — aba de caderno */
 #cq-titulo{font-family:'Patrick Hand',cursive;}
 
@@ -643,8 +658,27 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
             <option value="Arial,Helvetica,sans-serif">Normal (digitação)</option>
           </select>
           <span class="cq-tb-sep"></span>
-          <label class="cq-tb-color-lbl cq-c1" title="Cor da letra">🎨<input type="color" id="cq-cor-letra" value="#e8517a" onmousedown="cqSalvarSelecao()" onchange="cqCmd('foreColor', this.value)"></label>
-          <label class="cq-tb-color-lbl cq-c4" title="Cor de fundo (marca-texto)">🖍️<input type="color" id="cq-cor-fundo" value="#fff176" onmousedown="cqSalvarSelecao()" onchange="cqCmd('hiliteColor', this.value)"></label>
+          <div class="cq-color-picker">
+            <button type="button" class="cq-color-swatch-btn" onmousedown="cqSalvarSelecao()" onclick="cqTogglePainel('cq-painel-letra')" title="Cor da letra">
+              🎨 <span class="cq-color-swatch-chip" id="cq-chip-letra" style="background:#e8517a;"></span>
+            </button>
+            <div class="cq-color-panel" id="cq-painel-letra">
+              <div class="cq-color-panel-title">COR DA LETRA</div>
+              <div class="cq-color-grid" id="cq-grid-letra"></div>
+            </div>
+          </div>
+          <div class="cq-color-picker">
+            <button type="button" class="cq-color-swatch-btn" onmousedown="cqSalvarSelecao()" onclick="cqTogglePainel('cq-painel-fundo')" title="Cor de fundo (marca-texto)">
+              🖍️ <span class="cq-color-swatch-chip" id="cq-chip-fundo" style="background:#fff176;"></span>
+            </button>
+            <div class="cq-color-panel" id="cq-painel-fundo">
+              <div class="cq-color-panel-title">MARCA-TEXTO</div>
+              <div class="cq-color-grid" id="cq-grid-fundo"></div>
+              <div style="margin-top:.4rem;">
+                <button type="button" class="cq-tb-btn" style="width:100%;font-size:.7rem;" onclick="cqAplicarCor('hiliteColor','transparent','fundo')">Sem marca-texto</button>
+              </div>
+            </div>
+          </div>
           <span class="cq-tb-sep"></span>
           <button type="button" class="cq-tb-btn" onmousedown="event.preventDefault()" onclick="cqCmd('justifyLeft')" title="Alinhar à esquerda">⯇</button>
           <button type="button" class="cq-tb-btn" onmousedown="event.preventDefault()" onclick="cqCmd('justifyCenter')" title="Centralizar">☰</button>
@@ -6386,6 +6420,67 @@ function cqCmd(comando, valor) {
   try { document.execCommand(comando, false, valor || null); } catch (e) {}
   if (sel.rangeCount > 0) _cqSavedRange = sel.getRangeAt(0).cloneRange();
 }
+
+/* ── Paleta de cores em painel (substitui o input RGB nativo) ── */
+const CQ_PALETA_LETRA = [
+  '#2c2c2c','#ffffff','#e8517a','#ff8fa3','#f0a638','#ffd479',
+  '#3e7fd6','#8ec9ff','#1fb99a','#7ee8c8','#8a5cf6','#c4a3ff',
+  '#e63946','#2a9d8f','#264653','#6b4226'
+];
+const CQ_PALETA_FUNDO = [
+  '#fff176','#ffe0b2','#ffab91','#f8bbd0','#e1bee7','#b39ddb',
+  '#90caf9','#80deea','#a5d6a7','#c5e1a5','#fff9c4','#d7ccc8',
+  '#ffcdd2','#b2dfdb','#cfd8dc','#ffffff'
+];
+
+function cqMontarPaletas() {
+  const gLetra = document.getElementById('cq-grid-letra');
+  const gFundo = document.getElementById('cq-grid-fundo');
+  if (gLetra && !gLetra.dataset.pronto) {
+    CQ_PALETA_LETRA.forEach(cor => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'cq-color-dot'; b.style.background = cor;
+      b.title = cor;
+      b.onmousedown = (e) => e.preventDefault();
+      b.onclick = () => cqAplicarCor('foreColor', cor, 'letra');
+      gLetra.appendChild(b);
+    });
+    gLetra.dataset.pronto = '1';
+  }
+  if (gFundo && !gFundo.dataset.pronto) {
+    CQ_PALETA_FUNDO.forEach(cor => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'cq-color-dot'; b.style.background = cor;
+      b.title = cor;
+      b.onmousedown = (e) => e.preventDefault();
+      b.onclick = () => cqAplicarCor('hiliteColor', cor, 'fundo');
+      gFundo.appendChild(b);
+    });
+    gFundo.dataset.pronto = '1';
+  }
+}
+
+function cqTogglePainel(idPainel) {
+  cqMontarPaletas();
+  document.querySelectorAll('.cq-color-panel').forEach(p => {
+    if (p.id !== idPainel) p.classList.remove('aberto');
+  });
+  document.getElementById(idPainel).classList.toggle('aberto');
+}
+
+function cqAplicarCor(comando, cor, chip) {
+  cqCmd(comando, cor);
+  const chipEl = document.getElementById('cq-chip-' + chip);
+  if (chipEl) chipEl.style.background = (cor === 'transparent') ? 'repeating-linear-gradient(45deg,#555,#555 3px,#333 3px,#333 6px)' : cor;
+  document.querySelectorAll('.cq-color-panel').forEach(p => p.classList.remove('aberto'));
+}
+
+// Fecha os painéis de cor ao clicar fora deles
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.cq-color-picker')) {
+    document.querySelectorAll('.cq-color-panel').forEach(p => p.classList.remove('aberto'));
+  }
+});
 
 async function cqSalvarNota() {
   const titulo   = document.getElementById('cq-titulo').value.trim();
