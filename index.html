@@ -425,11 +425,16 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
 .cq-nota-titulo{font-weight:700;font-size:.86rem;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .cq-nota-resumo{font-size:.72rem;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.15rem;}
 .cq-nota-data{font-size:.62rem;color:var(--text3);margin-top:.25rem;font-family:'Share Tech Mono',monospace;}
-@media print{
-  body *{visibility:hidden;}
-  #cq-print-area,#cq-print-area *{visibility:visible;}
-  #cq-print-area{position:absolute !important;top:0 !important;left:0 !important;width:100%;padding:2rem;color:#000;background:#fff;}
-}
+
+/* Tela cheia da nota */
+.cq-fs-controls{display:none;position:absolute;top:8px;right:8px;z-index:20;align-items:center;gap:.35rem;
+  background:rgba(15,20,30,.92);padding:.4rem .5rem;border-radius:9px;border:1px solid rgba(255,255,255,.15);
+  box-shadow:0 6px 16px rgba(0,0,0,.4);}
+.cq-fs-zoom-label{font-family:'Share Tech Mono',monospace;font-size:.75rem;color:var(--text2);min-width:38px;text-align:center;}
+#cq-editor-area.cq-fullscreen{position:fixed !important;inset:0;z-index:9999;background:var(--panel);
+  padding:1.2rem;border-radius:0;height:100vh !important;}
+#cq-editor-area.cq-fullscreen .cq-fs-controls{display:flex;}
+#cq-editor-area.cq-toolbar-oculta #cq-toolbar{display:none !important;}
 </style>
 </head>
 <body>
@@ -616,12 +621,23 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
   <div id="cq-wrap" style="display:flex;gap:1rem;padding:1rem 1.2rem;max-width:1500px;margin:0 auto;align-items:flex-start;">
 
     <div id="cq-sidebar" style="flex:0 0 300px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:.9rem;position:sticky;top:1rem;">
+
+      <div id="cq-arquivo-box" style="display:none;background:var(--bg2);border:1px dashed var(--border2);border-radius:8px;padding:.6rem;margin-bottom:.8rem;">
+        <div style="font-size:.68rem;color:var(--text3);font-family:'Rajdhani',sans-serif;letter-spacing:.5px;margin-bottom:.4rem;">📁 ARQUIVO DE NOTAS (LOCAL)</div>
+        <div id="cq-arquivo-status" style="font-size:.75rem;color:var(--text2);margin-bottom:.5rem;">Nenhum arquivo carregado.</div>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+          <button onclick="cqAbrirArquivoNotas()" style="flex:1;min-width:120px;padding:.45rem .5rem;border-radius:7px;border:1px solid var(--accent);background:rgba(0,210,255,0.1);color:var(--accent);font-weight:700;cursor:pointer;font-size:.72rem;">📂 ABRIR ARQUIVO</button>
+          <button onclick="cqSalvarComo()" style="flex:1;min-width:120px;padding:.45rem .5rem;border-radius:7px;border:1px solid var(--accent2);background:rgba(0,255,200,0.1);color:var(--accent2);font-weight:700;cursor:pointer;font-size:.72rem;">💾 SALVAR COMO</button>
+        </div>
+        <input type="file" id="cq-input-arquivo" accept=".json" style="display:none;" onchange="cqLerArquivoInput(event)">
+      </div>
+
       <button id="cq-btn-nova" onclick="cqNovaNota()" style="width:100%;padding:.6rem;border-radius:8px;border:1px solid var(--accent2);background:rgba(0,255,200,0.12);color:var(--accent2);font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;letter-spacing:1px;margin-bottom:.8rem;">+ NOVA NOTA</button>
 
       <input id="cq-busca" type="text" placeholder="🔎 Buscar por título ou conteúdo…" oninput="cqRenderLista()"
         style="width:100%;padding:.55rem .7rem;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.85rem;margin-bottom:.8rem;">
 
-      <div id="cq-lista" style="display:flex;flex-direction:column;gap:.5rem;max-height:70vh;overflow-y:auto;"></div>
+      <div id="cq-lista" style="display:flex;flex-direction:column;gap:.5rem;max-height:60vh;overflow-y:auto;"></div>
       <p id="cq-vazio" style="display:none;color:var(--text3);font-size:.8rem;text-align:center;margin-top:1rem;">Nenhuma nota encontrada.</p>
     </div>
 
@@ -630,7 +646,18 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
         Selecione uma nota ao lado ou clique em <strong>+ NOVA NOTA</strong> para começar.
       </div>
 
-      <div id="cq-editor-area" style="display:none;flex-direction:column;height:100%;overflow:hidden;">
+      <div id="cq-editor-area" style="display:none;flex-direction:column;height:100%;overflow:hidden;position:relative;">
+
+        <div class="cq-fs-controls" id="cq-fs-controls">
+          <button type="button" class="cq-tb-btn cq-c3" onclick="cqAlternarBarra()" title="Mostrar/ocultar barra de ferramentas">👁️ BARRA</button>
+          <span class="cq-tb-sep"></span>
+          <button type="button" class="cq-tb-btn" onclick="cqZoom(-10)" title="Diminuir zoom">A−</button>
+          <span class="cq-fs-zoom-label" id="cq-zoom-label">100%</span>
+          <button type="button" class="cq-tb-btn" onclick="cqZoom(10)" title="Aumentar zoom">A+</button>
+          <span class="cq-tb-sep"></span>
+          <button type="button" class="cq-tb-btn cq-c1" onclick="cqAlternarTelaCheia()" title="Sair da tela cheia">✕ SAIR</button>
+        </div>
+
         <input id="cq-titulo" type="text" placeholder="Título da nota…"
           style="flex:0 0 auto;width:100%;padding:.6rem .8rem;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--white);font-family:'Rajdhani',sans-serif;font-size:1.15rem;font-weight:700;margin-bottom:.7rem;">
 
@@ -704,6 +731,8 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
 
         <div style="flex:0 0 auto;display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.8rem;">
           <button onclick="cqSalvarNota()" style="padding:.6rem 1.2rem;border-radius:8px;border:1px solid var(--accent2);background:rgba(0,255,200,0.15);color:var(--accent2);font-weight:700;cursor:pointer;">💾 SALVAR</button>
+          <button id="cq-btn-salvar-como" onclick="cqSalvarComo()" style="display:none;padding:.6rem 1.2rem;border-radius:8px;border:1px solid var(--accent);background:rgba(0,210,255,0.1);color:var(--accent);font-weight:700;cursor:pointer;">📁 SALVAR COMO…</button>
+          <button onclick="cqAlternarTelaCheia()" style="padding:.6rem 1.2rem;border-radius:8px;border:1px solid #c4a3ff;background:rgba(138,92,246,0.15);color:#c4a3ff;font-weight:700;cursor:pointer;">⛶ TELA CHEIA</button>
           <button onclick="cqImprimirNota()" style="padding:.6rem 1.2rem;border-radius:8px;border:1px solid var(--accent);background:rgba(0,210,255,0.12);color:var(--accent);font-weight:700;cursor:pointer;">🖨️ IMPRIMIR</button>
           <button onclick="cqExcluirNota()" id="cq-btn-excluir" style="display:none;padding:.6rem 1.2rem;border-radius:8px;border:1px solid var(--red);background:rgba(255,77,109,0.12);color:var(--red);font-weight:700;cursor:pointer;">🗑️ EXCLUIR</button>
           <span id="cq-status-msg" style="align-self:center;font-size:.78rem;color:var(--text2);"></span>
@@ -6279,20 +6308,15 @@ function _bloquearAcesso(nomeModulo) {
 let _cqNotas = [];
 let _cqNotaAtualId = null;
 let _cqSujo = false;
+let _cqArquivoHandle = null;   // referência ao arquivo único de notas (quando o navegador suporta escolher/reescrever arquivo)
+let _cqArquivoNome = null;
 
-// Master salva na nuvem (Supabase); demais níveis salvam só neste computador (localStorage).
+// Master salva na nuvem (Supabase); demais níveis salvam tudo em UM arquivo único no computador.
 function _cqModoLocal() {
   return !_sessaoAtual || _sessaoAtual.nivel !== 'master';
 }
-function _cqChaveLocal() {
+function _cqChaveLocalLegado() {
   return 'cq_notas_' + (_sessaoAtual ? _sessaoAtual.matricula : 'anon');
-}
-function _cqLerLocal() {
-  try { return JSON.parse(localStorage.getItem(_cqChaveLocal()) || '[]'); }
-  catch (e) { return []; }
-}
-function _cqGravarLocal(arr) {
-  localStorage.setItem(_cqChaveLocal(), JSON.stringify(arr));
 }
 
 async function abrirConsultaRapida() {
@@ -6305,17 +6329,144 @@ async function abrirConsultaRapida() {
   document.getElementById('cq-busca').value = '';
   _cqNotaAtualId = null;
   cqFecharEditor();
-  await cqCarregarNotas();
-  const aviso = document.getElementById('cq-status-msg');
-  if (aviso) aviso.textContent = _cqModoLocal() ? '💻 Notas salvas apenas neste computador.' : '☁️ Notas salvas na nuvem.';
+
+  const caixaArquivo = document.getElementById('cq-arquivo-box');
+  caixaArquivo.style.display = _cqModoLocal() ? 'block' : 'none';
+
+  if (_cqModoLocal()) {
+    _cqArquivoHandle = null;
+    _cqArquivoNome = null;
+    cqAtualizarStatusArquivo();
+    // Migração: se existirem notas antigas salvas no navegador (versão anterior
+    // do sistema, antes do arquivo único), carrega-as na tela para o usuário
+    // poder revisar e usar "SALVAR COMO" para colocá-las no arquivo único.
+    try {
+      const legado = JSON.parse(localStorage.getItem(_cqChaveLocalLegado()) || '[]');
+      if (legado.length) {
+        _cqNotas = legado;
+        document.getElementById('cq-arquivo-status').textContent =
+          `⚠️ ${legado.length} nota(s) de uma versão anterior foram encontradas neste navegador. Clique em "SALVAR COMO" para gravá-las num arquivo.`;
+      } else {
+        _cqNotas = [];
+      }
+    } catch (e) { _cqNotas = []; }
+    cqRenderLista();
+  } else {
+    await cqCarregarNotas();
+  }
+}
+
+function cqAtualizarStatusArquivo() {
+  const el = document.getElementById('cq-arquivo-status');
+  if (!el) return;
+  el.textContent = _cqArquivoNome
+    ? `✅ Arquivo carregado: ${_cqArquivoNome}`
+    : 'Nenhum arquivo carregado. Clique em "ABRIR ARQUIVO" para carregar suas notas, ou comece a criar notas novas e use "SALVAR COMO" para criar o arquivo.';
+}
+
+/* ── Abrir o arquivo único de notas do computador ── */
+async function cqAbrirArquivoNotas() {
+  if (window.showOpenFilePicker) {
+    try {
+      const [handle] = await window.showOpenFilePicker({
+        types: [{ description: 'Arquivo de notas (Consulta Rápida)', accept: { 'application/json': ['.json'] } }],
+        multiple: false
+      });
+      const file = await handle.getFile();
+      const texto = await file.text();
+      const notas = JSON.parse(texto);
+      _cqArquivoHandle = handle;
+      _cqArquivoNome = handle.name;
+      _cqNotas = Array.isArray(notas) ? notas : [];
+      cqAtualizarStatusArquivo();
+      cqFecharEditor();
+      cqRenderLista();
+    } catch (e) {
+      if (e.name !== 'AbortError') { console.error(e); alert('❌ Não foi possível abrir o arquivo. Verifique se é um arquivo de notas válido (.json).'); }
+    }
+  } else {
+    document.getElementById('cq-input-arquivo').click();
+  }
+}
+
+function cqLerArquivoInput(evento) {
+  const file = evento.target.files[0];
+  if (!file) return;
+  const leitor = new FileReader();
+  leitor.onload = () => {
+    try {
+      const notas = JSON.parse(leitor.result);
+      _cqArquivoHandle = null; // este navegador não permite regravar o mesmo arquivo automaticamente
+      _cqArquivoNome = file.name + ' (sem gravação automática — use "SALVAR COMO" após alterar)';
+      _cqNotas = Array.isArray(notas) ? notas : [];
+      cqAtualizarStatusArquivo();
+      cqFecharEditor();
+      cqRenderLista();
+    } catch (e) {
+      alert('❌ Este arquivo não parece ser um arquivo de notas válido.');
+    }
+  };
+  leitor.readAsText(file);
+  evento.target.value = '';
+}
+
+/* ── Salvar Como: escolhe onde gravar o arquivo único com todas as notas ── */
+async function cqSalvarComo() {
+  const nomeSugerido = _cqArquivoNome && !_cqArquivoNome.includes('(sem gravação') ? _cqArquivoNome : 'minhas_notas_pmdc.json';
+  const conteudoJson = JSON.stringify(_cqNotas, null, 2);
+
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: nomeSugerido,
+        types: [{ description: 'Arquivo de notas (Consulta Rápida)', accept: { 'application/json': ['.json'] } }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(conteudoJson);
+      await writable.close();
+      _cqArquivoHandle = handle;
+      _cqArquivoNome = handle.name;
+      cqAtualizarStatusArquivo();
+      const msgEl = document.getElementById('cq-status-msg');
+      if (msgEl) { msgEl.style.color = 'var(--accent2)'; msgEl.textContent = `✅ Arquivo gravado: ${handle.name}`; }
+      return true;
+    } catch (e) {
+      if (e.name === 'AbortError') return false;
+      console.error(e);
+      alert('❌ Não foi possível salvar o arquivo.');
+      return false;
+    }
+  } else {
+    const blob = new Blob([conteudoJson], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = nomeSugerido;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    _cqArquivoNome = nomeSugerido + ' (baixado — seu navegador não permite regravação automática)';
+    cqAtualizarStatusArquivo();
+    return 'download';
+  }
+}
+
+// Grava silenciosamente no arquivo já vinculado (sem abrir janela). Se ainda
+// não há arquivo vinculado, abre a janela "Salvar Como" uma vez.
+async function cqPersistirArquivo() {
+  if (_cqArquivoHandle) {
+    try {
+      const writable = await _cqArquivoHandle.createWritable();
+      await writable.write(JSON.stringify(_cqNotas, null, 2));
+      await writable.close();
+      return 'silencioso';
+    } catch (e) {
+      console.error(e);
+      return await cqSalvarComo();
+    }
+  }
+  return await cqSalvarComo();
 }
 
 async function cqCarregarNotas() {
-  if (_cqModoLocal()) {
-    _cqNotas = _cqLerLocal().sort((a,b) => (b.atualizado_em||'').localeCompare(a.atualizado_em||''));
-    cqRenderLista();
-    return;
-  }
   try {
     const arr = await sbGet('notas_rapidas', `usuario_id=eq.${_sessaoAtual.id}&order=atualizado_em.desc`);
     _cqNotas = arr || [];
@@ -6367,7 +6518,9 @@ function cqNovaNota() {
   document.getElementById('cq-titulo').value = '';
   document.getElementById('cq-texto').innerHTML = '';
   document.getElementById('cq-btn-excluir').style.display = 'none';
+  document.getElementById('cq-btn-salvar-como').style.display = _cqModoLocal() ? 'inline-block' : 'none';
   document.getElementById('cq-status-msg').textContent = 'Nova nota — ainda não salva.';
+  cqZoom(0, true);
   cqRenderLista();
   document.getElementById('cq-titulo').focus();
 }
@@ -6383,7 +6536,9 @@ function cqSelecionarNota(id) {
   document.getElementById('cq-titulo').value = n.titulo || '';
   document.getElementById('cq-texto').innerHTML = n.conteudo || '';
   document.getElementById('cq-btn-excluir').style.display = 'inline-block';
+  document.getElementById('cq-btn-salvar-como').style.display = _cqModoLocal() ? 'inline-block' : 'none';
   document.getElementById('cq-status-msg').textContent = '';
+  cqZoom(0, true);
   cqRenderLista();
 }
 
@@ -6489,44 +6644,6 @@ document.addEventListener('click', (e) => {
   }
 });
 
-/* Abre a janela nativa "Salvar como" do sistema operacional (quando suportado
-   pelo navegador) para o usuário escolher onde salvar a nota como arquivo. */
-async function cqSalvarArquivoLocal(titulo, conteudo) {
-  const nomeArquivo = (titulo || 'nota').replace(/[\\/:*?"<>|]/g, '_') + '.html';
-  const htmlCompleto = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escHtml(titulo)}</title></head>
-<body style="font-family:Arial,sans-serif;padding:2rem;">
-<h1>${escHtml(titulo)}</h1>
-${conteudo}
-</body></html>`;
-  const blob = new Blob([htmlCompleto], { type: 'text/html' });
-
-  if (window.showSaveFilePicker) {
-    try {
-      const handle = await window.showSaveFilePicker({
-        suggestedName: nomeArquivo,
-        types: [{ description: 'Página HTML', accept: { 'text/html': ['.html'] } }]
-      });
-      const writable = await handle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      return 'janela';
-    } catch (e) {
-      if (e.name === 'AbortError') return 'cancelado';
-      console.error(e);
-      return 'erro';
-    }
-  } else {
-    // Navegador sem suporte à janela "Salvar como" (ex: Firefox) — baixa
-    // automaticamente para a pasta padrão de downloads.
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = nomeArquivo;
-    document.body.appendChild(a); a.click(); a.remove();
-    URL.revokeObjectURL(url);
-    return 'download';
-  }
-}
-
 async function cqSalvarNota() {
   const titulo   = document.getElementById('cq-titulo').value.trim();
   const conteudo = document.getElementById('cq-texto').innerHTML;
@@ -6542,9 +6659,6 @@ async function cqSalvarNota() {
   msgEl.textContent = 'Salvando…';
 
   if (_cqModoLocal()) {
-    // Chama a janela "Salvar como" primeiro, ainda dentro do clique do usuário
-    // (alguns navegadores exigem isso para liberar a janela nativa).
-    const resultadoArquivo = await cqSalvarArquivoLocal(titulo, conteudo);
     try {
       const agora = new Date().toISOString();
       if (_cqNotaAtualId) {
@@ -6557,22 +6671,24 @@ async function cqSalvarNota() {
         _cqNotaAtualId = nova.id;
         document.getElementById('cq-btn-excluir').style.display = 'inline-block';
       }
-      _cqGravarLocal(_cqNotas);
+
+      const resultado = await cqPersistirArquivo();
       msgEl.style.color = 'var(--accent2)';
-      if (resultadoArquivo === 'janela') {
-        msgEl.textContent = '✅ Nota salva neste computador e no arquivo escolhido.';
-      } else if (resultadoArquivo === 'download') {
-        msgEl.textContent = '✅ Nota salva. Este navegador não permite escolher a pasta — o arquivo foi para sua pasta de Downloads.';
-      } else if (resultadoArquivo === 'cancelado') {
-        msgEl.textContent = '✅ Nota salva neste computador (você cancelou a gravação do arquivo).';
+      if (resultado === 'silencioso') {
+        msgEl.textContent = `✅ Nota salva no arquivo ${_cqArquivoNome}.`;
+      } else if (resultado === true) {
+        msgEl.textContent = `✅ Nota salva no arquivo ${_cqArquivoNome}.`;
+      } else if (resultado === 'download') {
+        msgEl.textContent = '✅ Nota salva. Arquivo baixado (este navegador não grava automaticamente — use "SALVAR COMO" de novo depois de outras alterações).';
       } else {
-        msgEl.textContent = '✅ Nota salva neste computador.';
+        msgEl.style.color = 'var(--red)';
+        msgEl.textContent = '⚠️ A nota está na tela, mas ainda não foi gravada em arquivo. Clique em "SALVAR COMO" para não perder a alteração.';
       }
       cqRenderLista();
     } catch (e) {
       console.error(e);
       msgEl.style.color = 'var(--red)';
-      msgEl.textContent = '❌ Erro ao salvar localmente.';
+      msgEl.textContent = '❌ Erro ao salvar.';
     }
     return;
   }
@@ -6612,10 +6728,21 @@ async function cqExcluirNota() {
 
   if (_cqModoLocal()) {
     _cqNotas = _cqNotas.filter(n => n.id !== _cqNotaAtualId);
-    _cqGravarLocal(_cqNotas);
     _cqNotaAtualId = null;
     cqFecharEditor();
     cqRenderLista();
+    const resultado = await cqPersistirArquivo();
+    const msgEl = document.getElementById('cq-status-msg');
+    if (resultado === 'silencioso' || resultado === true) {
+      msgEl.style.color = 'var(--accent2)';
+      msgEl.textContent = `✅ Exclusão gravada no arquivo ${_cqArquivoNome}.`;
+    } else if (resultado === 'download') {
+      msgEl.style.color = 'var(--accent2)';
+      msgEl.textContent = '✅ Exclusão salva. Arquivo atualizado baixado novamente.';
+    } else {
+      msgEl.style.color = 'var(--red)';
+      msgEl.textContent = '⚠️ Nota removida da tela, mas ainda não gravada em arquivo. Use "SALVAR COMO".';
+    }
     return;
   }
 
@@ -6634,20 +6761,50 @@ async function cqExcluirNota() {
 function cqImprimirNota() {
   const titulo   = document.getElementById('cq-titulo').value.trim() || 'Nota';
   const conteudo = document.getElementById('cq-texto').innerHTML;
-  let area = document.getElementById('cq-print-area');
-  if (!area) {
-    area = document.createElement('div');
-    area.id = 'cq-print-area';
-    // Fica fora da área visível da tela (não usar display:none, pois isso
-    // impede o elemento de aparecer mesmo durante a impressão).
-    area.style.position = 'fixed';
-    area.style.left = '-99999px';
-    area.style.top = '0';
-    document.body.appendChild(area);
-  }
-  area.innerHTML = `<h1 style="font-family:Arial,sans-serif;">${escHtml(titulo)}</h1><div style="font-family:Arial,sans-serif;line-height:1.6;">${conteudo}</div>`;
-  window.print();
+  const w = window.open('', '_blank', 'width=800,height=900');
+  if (!w) { alert('Seu navegador bloqueou a janela de impressão. Permita pop-ups para este site e tente novamente.'); return; }
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${escHtml(titulo)}</title>
+    <style>
+      @page{size:A4;margin:1.8cm;}
+      body{font-family:Arial,Helvetica,sans-serif;color:#000;line-height:1.6;}
+      h1{font-size:20pt;margin-bottom:1rem;}
+    </style>
+    </head><body>
+      <h1>${escHtml(titulo)}</h1>
+      <div>${conteudo}</div>
+    </body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(() => { w.print(); }, 400);
 }
+
+/* ── Tela cheia, zoom e ocultar/mostrar barra de ferramentas ── */
+let _cqZoomAtual = 100;
+
+function cqAlternarTelaCheia() {
+  document.getElementById('cq-editor-area').classList.toggle('cq-fullscreen');
+}
+
+function cqAlternarBarra() {
+  document.getElementById('cq-editor-area').classList.toggle('cq-toolbar-oculta');
+}
+
+function cqZoom(delta, resetar) {
+  _cqZoomAtual = resetar ? 100 : Math.min(200, Math.max(60, _cqZoomAtual + delta));
+  const texto = document.getElementById('cq-texto');
+  texto.style.fontSize   = (1.15 * _cqZoomAtual / 100).toFixed(2) + 'rem';
+  texto.style.lineHeight = Math.round(36 * _cqZoomAtual / 100) + 'px';
+  const label = document.getElementById('cq-zoom-label');
+  if (label) label.textContent = _cqZoomAtual + '%';
+}
+
+// Esc sai da tela cheia
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const area = document.getElementById('cq-editor-area');
+    if (area && area.classList.contains('cq-fullscreen')) area.classList.remove('cq-fullscreen');
+  }
+});
 
 /* ── Log de acessos ── */
 async function addLog(matricula, nome, acao) {
