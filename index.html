@@ -733,6 +733,7 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
           <button onclick="cqSalvarNota()" style="padding:.6rem 1.2rem;border-radius:8px;border:1px solid var(--accent2);background:rgba(0,255,200,0.15);color:var(--accent2);font-weight:700;cursor:pointer;">💾 SALVAR</button>
           <button id="cq-btn-salvar-como" onclick="cqSalvarComo()" style="display:none;padding:.6rem 1.2rem;border-radius:8px;border:1px solid var(--accent);background:rgba(0,210,255,0.1);color:var(--accent);font-weight:700;cursor:pointer;">📁 SALVAR COMO…</button>
           <button onclick="cqAlternarTelaCheia()" style="padding:.6rem 1.2rem;border-radius:8px;border:1px solid #c4a3ff;background:rgba(138,92,246,0.15);color:#c4a3ff;font-weight:700;cursor:pointer;">⛶ TELA CHEIA</button>
+          <button onclick="cqAlternarBarra()" style="padding:.6rem 1.2rem;border-radius:8px;border:1px solid #7ee8c8;background:rgba(30,185,154,0.15);color:#7ee8c8;font-weight:700;cursor:pointer;">👁️ BARRA</button>
           <button onclick="cqImprimirNota()" style="padding:.6rem 1.2rem;border-radius:8px;border:1px solid var(--accent);background:rgba(0,210,255,0.12);color:var(--accent);font-weight:700;cursor:pointer;">🖨️ IMPRIMIR</button>
           <button onclick="cqExcluirNota()" id="cq-btn-excluir" style="display:none;padding:.6rem 1.2rem;border-radius:8px;border:1px solid var(--red);background:rgba(255,77,109,0.12);color:var(--red);font-weight:700;cursor:pointer;">🗑️ EXCLUIR</button>
           <span id="cq-status-msg" style="align-self:center;font-size:.78rem;color:var(--text2);"></span>
@@ -6515,6 +6516,7 @@ function cqNovaNota() {
   _cqSavedRange = null;
   document.getElementById('cq-sem-selecao').style.display = 'none';
   document.getElementById('cq-editor-area').style.display = 'flex';
+  document.getElementById('cq-editor-area').classList.remove('cq-toolbar-oculta');
   document.getElementById('cq-titulo').value = '';
   document.getElementById('cq-texto').innerHTML = '';
   document.getElementById('cq-btn-excluir').style.display = 'none';
@@ -6533,6 +6535,7 @@ function cqSelecionarNota(id) {
   _cqSavedRange = null;
   document.getElementById('cq-sem-selecao').style.display = 'none';
   document.getElementById('cq-editor-area').style.display = 'flex';
+  document.getElementById('cq-editor-area').classList.remove('cq-toolbar-oculta');
   document.getElementById('cq-titulo').value = n.titulo || '';
   document.getElementById('cq-texto').innerHTML = n.conteudo || '';
   document.getElementById('cq-btn-excluir').style.display = 'inline-block';
