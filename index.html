@@ -6631,6 +6631,32 @@ function cqSalvarSelecao() {
   }
 }
 
+// Garante que Delete, Backspace ou Espaço apaguem o trecho selecionado na
+// nota — inclusive quando a seleção abrange uma forma inserida (linha,
+// seta, retângulo etc.), que é um bloco "não editável" por dentro e às
+// vezes confunde o comportamento padrão do navegador ao apagar.
+document.getElementById('cq-texto').addEventListener('keydown', function(e) {
+  if (e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== ' ') return;
+  const sel = window.getSelection();
+  if (sel.rangeCount === 0) return;
+  const range = sel.getRangeAt(0);
+  if (range.collapsed) return; // nada selecionado — deixa o navegador tratar normalmente
+
+  e.preventDefault();
+  range.deleteContents();
+
+  if (e.key === ' ') {
+    const espaco = document.createTextNode('\u00A0');
+    range.insertNode(espaco);
+    range.setStartAfter(espaco);
+    range.setEndAfter(espaco);
+  }
+
+  sel.removeAllRanges();
+  sel.addRange(range);
+  _cqSavedRange = range.cloneRange();
+});
+
 function cqCmd(comando, valor) {
   const texto = document.getElementById('cq-texto');
   texto.focus();
