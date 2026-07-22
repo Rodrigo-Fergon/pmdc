@@ -6873,74 +6873,81 @@ function cqInserirForma() {
   cqAtivarDragFormas();
 }
 
-/* ── Arrastar formas para reposicionar dentro da nota ── */
-let _cqFormaArrastando = null;
+/* ── Arrastar formas para reposicionar dentro da nota ──
+   Implementado via mousedown/mousemove/mouseup (em vez do drag-and-drop
+   nativo do HTML5), que é bem mais confiável dentro de uma área
+   contenteditable — o mesmo clique também serve para SELECIONAR a forma
+   (Ctrl+C/X/V, Delete) quando o mouse não se move o suficiente para
+   caracterizar um arraste. */
+let _cqDragInfo = null;
 
 function cqAtivarDragFormas() {
   document.querySelectorAll('#cq-texto .cq-shape-wrap').forEach(el => {
     if (el.dataset.dragAtivado) return;
     el.dataset.dragAtivado = '1';
-    el.draggable = true;
-    el.addEventListener('dragstart', cqFormaDragStart);
-    el.addEventListener('dragend', cqFormaDragEnd);
-    el.addEventListener('click', cqFormaClick);
+    el.addEventListener('mousedown', cqFormaMouseDown);
   });
 }
 
-function cqFormaClick(e) {
-  // Clicar no campo de texto interno (quando existir) continua editando o
-  // texto normalmente — só seleciona a forma como objeto ao clicar fora dele.
-  if (e.target.closest('.cq-shape-text')) return;
-  e.stopPropagation();
-  cqSelecionarForma(e.currentTarget);
-}
+function cqFormaMouseDown(e) {
+  if (e.button !== 0) return; // só botão esquerdo
+  if (e.target.closest('.cq-shape-text')) return; // deixa editar o texto interno normalmente
 
-function cqFormaDragStart(e) {
-  _cqFormaArrastando = e.currentTarget;
-  e.currentTarget.classList.add('cq-arrastando');
-  e.dataTransfer.effectAllowed = 'move';
-  // Necessário para o Firefox permitir o arraste
-  try { e.dataTransfer.setData('text/plain', ''); } catch (err) {}
-}
+  // Não interceptar perto do cantinho inferior direito — ali fica a alça
+  // nativa de redimensionar (CSS resize:both), que precisa continuar
+  // funcionando exatamente como antes.
+  const rect = e.currentTarget.getBoundingClientRect();
+  if ((rect.right - e.clientX < 16) && (rect.bottom - e.clientY < 16)) return;
 
-function cqFormaDragEnd(e) {
-  e.currentTarget.classList.remove('cq-arrastando');
-  document.getElementById('cq-texto').classList.remove('cq-drop-ativo');
-  _cqFormaArrastando = null;
-}
-
-function cqFormaDragOver(e) {
-  if (!_cqFormaArrastando) return;
   e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-  document.getElementById('cq-texto').classList.add('cq-drop-ativo');
+  _cqDragInfo = { el: e.currentTarget, startX: e.clientX, startY: e.clientY, moveu: false };
+  document.addEventListener('mousemove', cqFormaMouseMove);
+  document.addEventListener('mouseup', cqFormaMouseUp);
 }
 
-function cqFormaDrop(e) {
-  if (!_cqFormaArrastando) return;
-  e.preventDefault();
-  document.getElementById('cq-texto').classList.remove('cq-drop-ativo');
-
-  let range = null;
-  if (document.caretRangeFromPoint) {
-    range = document.caretRangeFromPoint(e.clientX, e.clientY);
-  } else if (document.caretPositionFromPoint) {
-    const pos = document.caretPositionFromPoint(e.clientX, e.clientY);
-    if (pos) { range = document.createRange(); range.setStart(pos.offsetNode, pos.offset); }
+function cqFormaMouseMove(e) {
+  if (!_cqDragInfo) return;
+  const dx = e.clientX - _cqDragInfo.startX;
+  const dy = e.clientY - _cqDragInfo.startY;
+  if (!_cqDragInfo.moveu && Math.hypot(dx, dy) > 5) {
+    _cqDragInfo.moveu = true;
+    _cqDragInfo.el.classList.add('cq-arrastando');
+    document.getElementById('cq-texto').classList.add('cq-drop-ativo');
   }
-  if (!range) { _cqFormaArrastando.classList.remove('cq-arrastando'); _cqFormaArrastando = null; return; }
-
-  const forma = _cqFormaArrastando;
-  range.collapse(true);
-  forma.remove();
-  range.insertNode(forma);
-  forma.classList.remove('cq-arrastando');
-  _cqFormaArrastando = null;
-  _cqSavedRange = range.cloneRange();
 }
 
-document.getElementById('cq-texto').addEventListener('dragover', cqFormaDragOver);
-document.getElementById('cq-texto').addEventListener('drop', cqFormaDrop);
+function cqFormaMouseUp(e) {
+  document.removeEventListener('mousemove', cqFormaMouseMove);
+  document.removeEventListener('mouseup', cqFormaMouseUp);
+  if (!_cqDragInfo) return;
+
+  const { el, moveu } = _cqDragInfo;
+  el.classList.remove('cq-arrastando');
+  document.getElementById('cq-texto').classList.remove('cq-drop-ativo');
+
+  if (moveu) {
+    // Foi um arraste — mover a forma para a posição onde o mouse foi solto
+    let range = null;
+    if (document.caretRangeFromPoint) {
+      range = document.caretRangeFromPoint(e.clientX, e.clientY);
+    } else if (document.caretPositionFromPoint) {
+      const pos = document.caretPositionFromPoint(e.clientX, e.clientY);
+      if (pos) { range = document.createRange(); range.setStart(pos.offsetNode, pos.offset); }
+    }
+    const texto = document.getElementById('cq-texto');
+    if (range && texto.contains(range.startContainer)) {
+      range.collapse(true);
+      el.remove();
+      range.insertNode(el);
+      _cqSavedRange = range.cloneRange();
+    }
+  } else {
+    // Foi só um clique (sem arrastar) — seleciona a forma como objeto
+    cqSelecionarForma(el);
+  }
+
+  _cqDragInfo = null;
+}
 
 /* ── Selecionar forma (clique) + Copiar/Recortar/Colar/Excluir (Ctrl+C, Ctrl+X, Ctrl+V, Delete) ── */
 let _cqFormaSelecionada = null;
