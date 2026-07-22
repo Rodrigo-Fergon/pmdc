@@ -396,6 +396,7 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
   resize:both;overflow:hidden;border:1px dashed transparent;min-width:24px;min-height:18px;cursor:grab;}
 .cq-shape-wrap:hover{border-color:#9aa5b3;}
 .cq-shape-wrap.cq-arrastando{opacity:.4;cursor:grabbing;}
+.cq-shape-wrap.cq-forma-selecionada{outline:2px solid var(--accent);outline-offset:2px;box-shadow:0 0 10px rgba(0,210,255,.4);}
 .cq-shape-wrap svg{width:100%;height:100%;display:block;pointer-events:none;}
 .cq-shape-text{position:absolute;inset:6px;display:flex;align-items:center;justify-content:center;
   text-align:center;padding:4px;font-family:'Patrick Hand',cursive;font-size:1rem;color:#2c2c2c;
@@ -6882,7 +6883,16 @@ function cqAtivarDragFormas() {
     el.draggable = true;
     el.addEventListener('dragstart', cqFormaDragStart);
     el.addEventListener('dragend', cqFormaDragEnd);
+    el.addEventListener('click', cqFormaClick);
   });
+}
+
+function cqFormaClick(e) {
+  // Clicar no campo de texto interno (quando existir) continua editando o
+  // texto normalmente — só seleciona a forma como objeto ao clicar fora dele.
+  if (e.target.closest('.cq-shape-text')) return;
+  e.stopPropagation();
+  cqSelecionarForma(e.currentTarget);
 }
 
 function cqFormaDragStart(e) {
@@ -6931,6 +6941,88 @@ function cqFormaDrop(e) {
 
 document.getElementById('cq-texto').addEventListener('dragover', cqFormaDragOver);
 document.getElementById('cq-texto').addEventListener('drop', cqFormaDrop);
+
+/* ── Selecionar forma (clique) + Copiar/Recortar/Colar/Excluir (Ctrl+C, Ctrl+X, Ctrl+V, Delete) ── */
+let _cqFormaSelecionada = null;
+let _cqFormaClipboard = null;
+
+function cqSelecionarForma(el) {
+  if (_cqFormaSelecionada && _cqFormaSelecionada !== el) {
+    _cqFormaSelecionada.classList.remove('cq-forma-selecionada');
+  }
+  _cqFormaSelecionada = el;
+  el.classList.add('cq-forma-selecionada');
+}
+
+function cqDesselecionarForma() {
+  if (_cqFormaSelecionada) _cqFormaSelecionada.classList.remove('cq-forma-selecionada');
+  _cqFormaSelecionada = null;
+}
+
+// Clicar fora de qualquer forma desmarca a seleção atual
+document.addEventListener('click', (e) => {
+  if (_cqFormaSelecionada && !e.target.closest('.cq-shape-wrap')) {
+    cqDesselecionarForma();
+  }
+});
+
+// Insere uma cópia (clone) da forma copiada na posição atual do cursor,
+// gerando um novo identificador de marcador de seta (evita conflito de id
+// quando existir mais de uma seta com o mesmo desenho na nota).
+function cqColarForma() {
+  if (!_cqFormaClipboard) return;
+  const temp = document.createElement('div');
+  temp.innerHTML = _cqFormaClipboard;
+  const novaForma = temp.firstElementChild;
+  if (!novaForma) return;
+
+  _cqFormaContador++;
+  const novoId = 'cqseta' + _cqFormaContador;
+  const marker = novaForma.querySelector('marker');
+  if (marker) {
+    marker.id = novoId;
+    const linha = novaForma.querySelector('line[marker-end]');
+    if (linha) linha.setAttribute('marker-end', 'url(#' + novoId + ')');
+  }
+  novaForma.classList.remove('cq-forma-selecionada', 'cq-arrastando');
+  novaForma.removeAttribute('data-drag-ativado');
+
+  cqInserirHtmlNaPosicao(novaForma.outerHTML + '&nbsp;');
+  cqAtivarDragFormas();
+}
+
+document.addEventListener('keydown', (e) => {
+  const ctrlOuCmd = e.ctrlKey || e.metaKey;
+
+  // Colar: funciona sempre que há algo copiado e o foco está na nota
+  if (ctrlOuCmd && e.key.toLowerCase() === 'v' && _cqFormaClipboard) {
+    const texto = document.getElementById('cq-texto');
+    const ativo = document.activeElement;
+    const dentroDaNota = texto && (texto === ativo || texto.contains(ativo) || texto.contains(document.getSelection().anchorNode));
+    if (dentroDaNota) {
+      e.preventDefault();
+      cqColarForma();
+      return;
+    }
+  }
+
+  // Copiar / Recortar / Excluir: exigem uma forma selecionada como objeto
+  if (!_cqFormaSelecionada) return;
+
+  if (ctrlOuCmd && e.key.toLowerCase() === 'c') {
+    e.preventDefault();
+    _cqFormaClipboard = _cqFormaSelecionada.outerHTML;
+  } else if (ctrlOuCmd && e.key.toLowerCase() === 'x') {
+    e.preventDefault();
+    _cqFormaClipboard = _cqFormaSelecionada.outerHTML;
+    _cqFormaSelecionada.remove();
+    _cqFormaSelecionada = null;
+  } else if (e.key === 'Delete' || e.key === 'Backspace') {
+    e.preventDefault();
+    _cqFormaSelecionada.remove();
+    _cqFormaSelecionada = null;
+  }
+});
 
 // Fecha os painéis de cor ao clicar fora deles
 document.addEventListener('click', (e) => {
