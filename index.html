@@ -427,18 +427,19 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
   font-size:1.15rem;
   line-height:36px;
   padding:12px 24px 12px 64px;
-  width:100%;
-  height:100%;
+  width:794px;
+  min-height:1123px;
   border:none;
-  border-radius:0;
-  overflow-y:auto;
-  scrollbar-width:thin;
-  scrollbar-color:#c3cad4 #e9ecf1;
+  border-radius:2px;
+  box-shadow:0 4px 18px rgba(0,0,0,.35), 0 0 0 1px rgba(0,0,0,.06);
+  box-sizing:border-box;
+  transform-origin:top left;
 }
-#cq-texto::-webkit-scrollbar{width:10px;}
-#cq-texto::-webkit-scrollbar-track{background:#e9ecf1;}
-#cq-texto::-webkit-scrollbar-thumb{background:#b7c0cc;border-radius:6px;}
-#cq-texto::-webkit-scrollbar-thumb:hover{background:#9aa5b3;}
+#cq-pagina-viewport{scrollbar-width:thin;scrollbar-color:#c3cad4 #e9ecf1;}
+#cq-pagina-viewport::-webkit-scrollbar{width:10px;height:10px;}
+#cq-pagina-viewport::-webkit-scrollbar-track{background:#e9ecf1;}
+#cq-pagina-viewport::-webkit-scrollbar-thumb{background:#b7c0cc;border-radius:6px;}
+#cq-pagina-viewport::-webkit-scrollbar-thumb:hover{background:#9aa5b3;}
 #cq-texto:focus,#cq-titulo:focus,#cq-busca:focus{outline:2px solid var(--accent);outline-offset:1px;}
 #cq-texto[contenteditable]:empty:before{content:'Comece a escrever sua nota…';color:#b3aca0;}
 .cq-nota-card{border:1px solid var(--border);border-radius:8px;padding:.6rem .7rem;cursor:pointer;background:var(--panel2);transition:all .15s;border-left:4px solid var(--accent);}
@@ -449,7 +450,7 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
 .cq-nota-data{font-size:.62rem;color:var(--text3);margin-top:.25rem;font-family:'Share Tech Mono',monospace;}
 
 /* Tela cheia da nota */
-.cq-fs-controls{display:none;position:absolute;top:8px;right:8px;z-index:20;align-items:center;gap:.35rem;
+.cq-fs-controls{display:none;position:absolute;top:8px;right:8px;z-index:20;align-items:center;gap:.35rem;flex-wrap:wrap;max-width:calc(100% - 16px);justify-content:flex-end;
   background:rgba(15,20,30,.92);padding:.4rem .5rem;border-radius:9px;border:1px solid rgba(255,255,255,.15);
   box-shadow:0 6px 16px rgba(0,0,0,.4);}
 .cq-fs-zoom-label{font-family:'Share Tech Mono',monospace;font-size:.75rem;color:var(--text2);min-width:38px;text-align:center;}
@@ -673,9 +674,17 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
         <div class="cq-fs-controls" id="cq-fs-controls">
           <button type="button" class="cq-tb-btn cq-c3" onclick="cqAlternarBarra()" title="Mostrar/ocultar barra de ferramentas">👁️ BARRA</button>
           <span class="cq-tb-sep"></span>
-          <button type="button" class="cq-tb-btn" onclick="cqZoom(-10)" title="Diminuir zoom">A−</button>
+          <span style="font-size:.6rem;color:var(--text3);letter-spacing:.5px;">TEXTO</span>
+          <button type="button" class="cq-tb-btn" onclick="cqZoom(-10)" title="Diminuir zoom do texto (tamanho da letra)">A−</button>
           <span class="cq-fs-zoom-label" id="cq-zoom-label">100%</span>
-          <button type="button" class="cq-tb-btn" onclick="cqZoom(10)" title="Aumentar zoom">A+</button>
+          <button type="button" class="cq-tb-btn" onclick="cqZoom(10)" title="Aumentar zoom do texto (tamanho da letra)">A+</button>
+          <span class="cq-tb-sep"></span>
+          <span style="font-size:.6rem;color:var(--text3);letter-spacing:.5px;">FOLHA</span>
+          <button type="button" class="cq-tb-btn" onclick="cqZoomFolha(-10)" title="Diminuir zoom da folha (página inteira)">🔍−</button>
+          <span class="cq-fs-zoom-label" id="cq-zoom-folha-label">100%</span>
+          <button type="button" class="cq-tb-btn" onclick="cqZoomFolha(10)" title="Aumentar zoom da folha (página inteira)">🔍+</button>
+          <span class="cq-tb-sep"></span>
+          <span class="cq-fs-zoom-label" id="cq-paginas-label" title="Quantidade de folhas A4 da nota">📄 1 folha</span>
           <span class="cq-tb-sep"></span>
           <button type="button" class="cq-tb-btn cq-c1" onclick="cqAlternarTelaCheia()" title="Sair da tela cheia">✕ SAIR</button>
         </div>
@@ -793,7 +802,11 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
         </div>
 
         <div class="cq-notebook" style="flex:1 1 auto;min-height:0;display:flex;">
-          <div id="cq-texto" contenteditable="true"></div>
+          <div id="cq-pagina-viewport" style="flex:1 1 auto;min-height:0;overflow:auto;display:flex;justify-content:center;align-items:flex-start;">
+            <div id="cq-pagina-escala" style="margin:24px 0 40px;position:relative;">
+              <div id="cq-texto" contenteditable="true"></div>
+            </div>
+          </div>
         </div>
 
         <div style="flex:0 0 auto;display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.8rem;">
@@ -6590,6 +6603,9 @@ function cqNovaNota() {
   document.getElementById('cq-btn-salvar-como').style.display = _cqModoLocal() ? 'inline-block' : 'none';
   document.getElementById('cq-status-msg').textContent = 'Nova nota — ainda não salva.';
   cqZoom(0, true);
+  cqZoomFolha(0, true);
+  cqIniciarObservadorPaginacao();
+  cqAtualizarPaginacao();
   cqRenderLista();
   document.getElementById('cq-titulo').focus();
 }
@@ -6609,6 +6625,9 @@ function cqSelecionarNota(id) {
   document.getElementById('cq-btn-salvar-como').style.display = _cqModoLocal() ? 'inline-block' : 'none';
   document.getElementById('cq-status-msg').textContent = '';
   cqZoom(0, true);
+  cqZoomFolha(0, true);
+  cqIniciarObservadorPaginacao();
+  cqAtualizarPaginacao();
   cqRenderLista();
   cqAtivarDragFormas();
 }
@@ -6663,7 +6682,24 @@ document.getElementById('cq-texto').addEventListener('keydown', function(e) {
   _cqSavedRange = range.cloneRange();
 });
 
+// Comandos de formatação simples que, quando há forma(s) selecionada(s),
+// passam a atuar sobre o texto interno delas (em vez da seleção de texto
+// da nota) — assim a barra de edição também formata o que foi selecionado
+// clicando/arrastando sobre as formas.
+const CQ_COMANDOS_FORMA_TOGGLE = { bold: 'negrito', italic: 'italico', underline: 'sublinhado', strikeThrough: 'tachado' };
+
 function cqCmd(comando, valor) {
+  if (_cqFormasSelecionadas.length) {
+    if (CQ_COMANDOS_FORMA_TOGGLE[comando]) {
+      if (cqAplicarEstiloTextoFormasSelecionadas(CQ_COMANDOS_FORMA_TOGGLE[comando])) return;
+    } else if (comando === 'fontName') {
+      if (cqAplicarPropriedadeTextoFormasSelecionadas('fontFamily', valor)) return;
+    } else if (comando === 'fontSize') {
+      const mapa = { '1':'0.75rem', '3':'1rem', '5':'1.3rem', '7':'1.7rem' };
+      if (cqAplicarPropriedadeTextoFormasSelecionadas('fontSize', mapa[valor] || '1rem')) return;
+    }
+  }
+
   const texto = document.getElementById('cq-texto');
   texto.focus();
   const sel = window.getSelection();
@@ -6678,6 +6714,36 @@ function cqCmd(comando, valor) {
   }
   try { document.execCommand(comando, false, valor || null); } catch (e) {}
   if (sel.rangeCount > 0) _cqSavedRange = sel.getRangeAt(0).cloneRange();
+}
+
+// Aplica um valor de estilo CSS diretamente ao texto interno de todas as
+// formas selecionadas (usado por fonte e tamanho da fonte). Retorna true
+// se havia ao menos uma forma com texto para aplicar.
+function cqAplicarPropriedadeTextoFormasSelecionadas(propriedade, valor) {
+  const textos = _cqFormasSelecionadas.map(f => f.querySelector('.cq-shape-text')).filter(Boolean);
+  if (!textos.length) return false;
+  textos.forEach(t => { t.style[propriedade] = valor; });
+  return true;
+}
+
+// Liga/desliga um estilo (negrito, itálico, sublinhado, tachado) no texto
+// interno de todas as formas selecionadas. Se todas já estiverem com o
+// estilo ativo, ele é desligado em todas; senão, é ligado em todas.
+function cqAplicarEstiloTextoFormasSelecionadas(chave) {
+  const textos = _cqFormasSelecionadas.map(f => f.querySelector('.cq-shape-text')).filter(Boolean);
+  if (!textos.length) return false;
+  const todosAtivos = textos.every(t => t.dataset[chave] === '1');
+  const novoEstado = todosAtivos ? '0' : '1';
+  textos.forEach(t => {
+    t.dataset[chave] = novoEstado;
+    t.style.fontWeight = t.dataset.negrito === '1' ? 'bold' : 'normal';
+    t.style.fontStyle = t.dataset.italico === '1' ? 'italic' : 'normal';
+    const decos = [];
+    if (t.dataset.sublinhado === '1') decos.push('underline');
+    if (t.dataset.tachado === '1') decos.push('line-through');
+    t.style.textDecoration = decos.join(' ') || 'none';
+  });
+  return true;
 }
 
 /* ── Paleta de cores em painel (substitui o input RGB nativo) ── */
@@ -6809,7 +6875,12 @@ function cqAoMudarEspessuraForma(valor) {
 }
 
 function cqAplicarCor(comando, cor, chip) {
-  cqCmd(comando, cor);
+  if (_cqFormasSelecionadas.length && (comando === 'foreColor' || comando === 'hiliteColor')) {
+    const propriedade = comando === 'foreColor' ? 'color' : 'backgroundColor';
+    cqAplicarPropriedadeTextoFormasSelecionadas(propriedade, cor);
+  } else {
+    cqCmd(comando, cor);
+  }
   const chipEl = document.getElementById('cq-chip-' + chip);
   if (chipEl) chipEl.style.background = (cor === 'transparent') ? 'repeating-linear-gradient(45deg,#555,#555 3px,#333 3px,#333 6px)' : cor;
   document.querySelectorAll('.cq-color-panel').forEach(p => p.classList.remove('aberto'));
@@ -6971,7 +7042,9 @@ function cqFormaMouseMove(e) {
   const dy = e.clientY - _cqDragInfo.startY;
   if (!_cqDragInfo.moveu && Math.hypot(dx, dy) > 5) {
     _cqDragInfo.moveu = true;
-    _cqDragInfo.el.classList.add('cq-arrastando');
+    const grupo = (_cqFormasSelecionadas.length > 1 && _cqFormasSelecionadas.includes(_cqDragInfo.el))
+      ? _cqFormasSelecionadas : [_cqDragInfo.el];
+    grupo.forEach(f => f.classList.add('cq-arrastando'));
     document.getElementById('cq-texto').classList.add('cq-drop-ativo');
   }
 }
@@ -6982,11 +7055,13 @@ function cqFormaMouseUp(e) {
   if (!_cqDragInfo) return;
 
   const { el, moveu, aditivo } = _cqDragInfo;
-  el.classList.remove('cq-arrastando');
+  const grupoArrastado = (_cqFormasSelecionadas.length > 1 && _cqFormasSelecionadas.includes(el))
+    ? _cqFormasSelecionadas : [el];
+  grupoArrastado.forEach(f => f.classList.remove('cq-arrastando'));
   document.getElementById('cq-texto').classList.remove('cq-drop-ativo');
 
   if (moveu) {
-    // Foi um arraste — mover a forma para a posição onde o mouse foi solto
+    // Foi um arraste — mover a(s) forma(s) para a posição onde o mouse foi solto
     let range = null;
     if (document.caretRangeFromPoint) {
       range = document.caretRangeFromPoint(e.clientX, e.clientY);
@@ -6997,9 +7072,27 @@ function cqFormaMouseUp(e) {
     const texto = document.getElementById('cq-texto');
     if (range && texto.contains(range.startContainer)) {
       range.collapse(true);
-      el.remove();
-      range.insertNode(el);
-      _cqSavedRange = range.cloneRange();
+
+      if (_cqFormasSelecionadas.length > 1 && _cqFormasSelecionadas.includes(el)) {
+        // A forma arrastada faz parte de uma seleção múltipla — move o
+        // grupo inteiro junto para o novo local, preservando a ordem
+        // relativa em que as formas apareciam no documento.
+        const grupo = _cqFormasSelecionadas.slice().sort((a, b) =>
+          (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) ? -1 : 1
+        );
+        grupo.forEach(f => f.remove());
+        let ponto = range;
+        grupo.forEach(f => {
+          ponto.insertNode(f);
+          ponto.setStartAfter(f);
+          ponto.collapse(true);
+        });
+        _cqSavedRange = ponto.cloneRange();
+      } else {
+        el.remove();
+        range.insertNode(el);
+        _cqSavedRange = range.cloneRange();
+      }
     }
   } else {
     // Foi só um clique (sem arrastar) — seleciona a forma como objeto.
@@ -7374,6 +7467,81 @@ function cqZoom(delta, resetar) {
   texto.style.lineHeight = Math.round(36 * _cqZoomAtual / 100) + 'px';
   const label = document.getElementById('cq-zoom-label');
   if (label) label.textContent = _cqZoomAtual + '%';
+  cqAtualizarPaginacao(); // fonte maior/menor muda quanto de folha o texto ocupa
+}
+
+/* ── Paginação em folhas A4 + zoom da folha ──
+   #cq-texto tem largura fixa de folha A4 (794px ≈ 210mm) e cresce em
+   ALTURA por página inteira (1123px ≈ 297mm) conforme o conteúdo aumenta,
+   dando a impressão de várias folhas empilhadas. A rolagem acontece no
+   viewport (#cq-pagina-viewport) que envolve a folha, não dentro dela.
+   O "zoom da folha" (🔍−/🔍+) usa transform:scale() na folha inteira —
+   como o zoom de página de um editor de texto — e é independente do
+   "zoom do texto" (A−/A+), que só muda o tamanho da letra dentro da folha. */
+const CQ_PAGINA_LARGURA = 794;  // px ≈ 210mm (A4) a 96dpi
+const CQ_PAGINA_ALTURA  = 1123; // px ≈ 297mm (A4) a 96dpi
+let _cqNumPaginas = 1;
+let _cqZoomFolhaAtual = 100;
+let _cqPaginacaoDebounce = null;
+let _cqPaginacaoObservador = null;
+
+// Recalcula quantas folhas A4 o conteúdo atual precisa e ajusta a
+// min-height de #cq-texto em múltiplos de página (acrescenta folhas
+// conforme o texto/formas crescem; remove folhas de sobra se o conteúdo
+// diminuir, sem nunca ficar abaixo de 1 folha).
+function cqAtualizarPaginacao() {
+  const texto = document.getElementById('cq-texto');
+  if (!texto) return;
+  texto.style.minHeight = '0';
+  const alturaConteudo = texto.scrollHeight;
+  const paginasNecessarias = Math.max(1, Math.ceil(alturaConteudo / CQ_PAGINA_ALTURA));
+  texto.style.minHeight = (paginasNecessarias * CQ_PAGINA_ALTURA) + 'px';
+
+  if (paginasNecessarias !== _cqNumPaginas) {
+    _cqNumPaginas = paginasNecessarias;
+    const labelPag = document.getElementById('cq-paginas-label');
+    if (labelPag) labelPag.textContent = '📄 ' + _cqNumPaginas + (_cqNumPaginas === 1 ? ' folha' : ' folhas');
+  }
+  cqAtualizarEscalaPagina();
+}
+
+// Aplica o zoom da folha (transform:scale) e redimensiona o wrapper
+// #cq-pagina-escala para o tamanho JÁ escalado, para que o viewport role
+// e centralize corretamente (o transform não altera o espaço reservado
+// no layout, por isso o wrapper precisa refletir o tamanho final visível).
+function cqAtualizarEscalaPagina() {
+  const texto = document.getElementById('cq-texto');
+  const escala = document.getElementById('cq-pagina-escala');
+  if (!texto || !escala) return;
+  const fator = _cqZoomFolhaAtual / 100;
+  texto.style.transform = `scale(${fator})`;
+  escala.style.width  = (CQ_PAGINA_LARGURA * fator) + 'px';
+  escala.style.height = (_cqNumPaginas * CQ_PAGINA_ALTURA * fator) + 'px';
+}
+
+function cqZoomFolha(delta, resetar) {
+  _cqZoomFolhaAtual = resetar ? 100 : Math.min(200, Math.max(40, _cqZoomFolhaAtual + delta));
+  const label = document.getElementById('cq-zoom-folha-label');
+  if (label) label.textContent = _cqZoomFolhaAtual + '%';
+  cqAtualizarEscalaPagina();
+}
+
+// Observa mudanças no conteúdo da nota (digitação, formas inseridas/
+// redimensionadas/movidas, colagens etc.) e recalcula a paginação com um
+// pequeno debounce, para folhas novas serem acrescentadas automaticamente
+// à medida que a nota cresce — sem precisar espalhar chamadas manuais em
+// cada função que altera o conteúdo.
+function cqIniciarObservadorPaginacao() {
+  const texto = document.getElementById('cq-texto');
+  if (!texto || _cqPaginacaoObservador) return;
+  _cqPaginacaoObservador = new MutationObserver(() => {
+    clearTimeout(_cqPaginacaoDebounce);
+    _cqPaginacaoDebounce = setTimeout(cqAtualizarPaginacao, 120);
+  });
+  _cqPaginacaoObservador.observe(texto, {
+    childList: true, subtree: true, characterData: true,
+    attributes: true, attributeFilter: ['style', 'class']
+  });
 }
 
 // Esc sai da tela cheia
