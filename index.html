@@ -395,7 +395,7 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
 .cq-shape-wrap{display:inline-block;position:relative;vertical-align:middle;margin:2px 6px;
   resize:both;overflow:hidden;border:1px dashed transparent;min-width:24px;min-height:18px;cursor:grab;}
 .cq-shape-wrap:hover{border-color:#9aa5b3;}
-.cq-shape-wrap.cq-arrastando{opacity:.4;cursor:grabbing;}
+.cq-shape-wrap.cq-arrastando{opacity:.4;cursor:grabbing;pointer-events:none;}
 .cq-shape-wrap.cq-forma-selecionada{outline:2px solid var(--accent);outline-offset:2px;box-shadow:0 0 10px rgba(0,210,255,.4);}
 .cq-shape-wrap.cq-forma-preview-laco{outline:2px dashed var(--accent);outline-offset:2px;}
 .cq-shape-wrap svg{width:100%;height:100%;display:block;pointer-events:none;}
@@ -7574,6 +7574,11 @@ function cqDesselecionarForma() {
 let _cqLacoRecemFinalizado = false;
 document.addEventListener('click', (e) => {
   if (_cqLacoRecemFinalizado) { _cqLacoRecemFinalizado = false; return; }
+  // Clicar na barra de ferramentas (ex.: abrir o painel FORMAS/TABELA ou
+  // escolher uma cor) não pode desmarcar a forma/tabela selecionada — senão
+  // a seleção se perde antes de o clique na cor chegar a valer. O mesmo
+  // vale para o menu de filtro da tabela, que fica fora dela (no body).
+  if (e.target.closest('#cq-toolbar') || e.target.closest('#cq-tabela-filtro-menu')) return;
   const editandoCelula = e.target.closest('.cq-tabela-wrap td, .cq-tabela-wrap th, .cq-tabela-controles, .cq-tabela-filtro-btn');
   if (_cqFormasSelecionadas.length && (editandoCelula || !e.target.closest('.cq-shape-wrap'))) {
     cqDesselecionarForma();
