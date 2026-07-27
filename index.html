@@ -397,6 +397,7 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
 .cq-shape-wrap:hover{border-color:#9aa5b3;}
 .cq-shape-wrap.cq-arrastando{opacity:.4;cursor:grabbing;}
 .cq-shape-wrap.cq-forma-selecionada{outline:2px solid var(--accent);outline-offset:2px;box-shadow:0 0 10px rgba(0,210,255,.4);}
+.cq-shape-wrap.cq-forma-preview-laco{outline:2px dashed var(--accent);outline-offset:2px;}
 .cq-shape-wrap svg{width:100%;height:100%;display:block;pointer-events:none;}
 .cq-shape-text{position:absolute;inset:6px;display:flex;align-items:center;justify-content:center;
   text-align:center;padding:4px;font-family:'Patrick Hand',cursive;font-size:1rem;color:#2c2c2c;
@@ -6727,7 +6728,7 @@ function cqMontarPaletas() {
         _cqFormaCorAtual = cor;
         gForma.querySelectorAll('.cq-color-dot').forEach(d => d.classList.remove('selecionada'));
         b.classList.add('selecionada');
-        if (_cqFormaSelecionada) cqRecolorirForma(_cqFormaSelecionada, cor, null);
+        if (_cqFormasSelecionadas.length) _cqFormasSelecionadas.forEach(el => cqRecolorirForma(el, cor, null));
       };
       gForma.appendChild(b);
     });
@@ -6745,7 +6746,7 @@ function cqMontarPaletas() {
         _cqFormaCorPreenchimento = cor;
         gFormaFill.querySelectorAll('.cq-color-dot').forEach(d => d.classList.remove('selecionada'));
         b.classList.add('selecionada');
-        if (_cqFormaSelecionada) cqRecolorirForma(_cqFormaSelecionada, null, cor);
+        if (_cqFormasSelecionadas.length) _cqFormasSelecionadas.forEach(el => cqRecolorirForma(el, null, cor));
       };
       gFormaFill.appendChild(b);
     });
@@ -6768,7 +6769,13 @@ function cqTogglePainel(idPainel) {
 // à forma já inserida (em vez de servirem só de padrão para a próxima).
 function cqAtualizarAvisoFormaPainel() {
   const aviso = document.getElementById('cq-forma-aviso-editar');
-  if (aviso) aviso.style.display = _cqFormaSelecionada ? 'block' : 'none';
+  if (!aviso) return;
+  const n = _cqFormasSelecionadas.length;
+  if (n === 0) { aviso.style.display = 'none'; return; }
+  aviso.style.display = 'block';
+  aviso.textContent = n === 1
+    ? '🎯 Forma selecionada — as cores e a espessura abaixo serão aplicadas a ela.'
+    : `🎯 ${n} formas selecionadas — as cores e a espessura abaixo serão aplicadas a todas elas.`;
 }
 
 // Aplica cor de borda e/ou preenchimento diretamente aos elementos SVG
@@ -6793,10 +6800,12 @@ function cqRecolorirForma(el, corBorda, corPreenchimento) {
 
 // Aplica a espessura escolhida no painel diretamente à forma selecionada.
 function cqAoMudarEspessuraForma(valor) {
-  if (!_cqFormaSelecionada) return;
-  const svg = _cqFormaSelecionada.querySelector('svg');
-  if (!svg) return;
-  svg.querySelectorAll('line, rect, ellipse, polygon').forEach(s => s.setAttribute('stroke-width', valor));
+  if (!_cqFormasSelecionadas.length) return;
+  _cqFormasSelecionadas.forEach(el => {
+    const svg = el.querySelector('svg');
+    if (!svg) return;
+    svg.querySelectorAll('line, rect, ellipse, polygon').forEach(s => s.setAttribute('stroke-width', valor));
+  });
 }
 
 function cqAplicarCor(comando, cor, chip) {
@@ -6835,14 +6844,15 @@ function cqAlternarPreenchimentoForma() {
   const corWrap = document.getElementById('cq-forma-preencher-cor-wrap');
   if (corWrap) corWrap.style.display = marcado ? 'block' : 'none';
 
-  // Se houver uma forma (fechada) selecionada, liga/desliga o preenchimento
-  // dela imediatamente, em vez de só valer para a próxima forma inserida.
-  if (_cqFormaSelecionada) {
-    const svg = _cqFormaSelecionada.querySelector('svg');
-    if (svg) {
-      const corFill = marcado ? (_cqFormaCorPreenchimento || '#f0a638') : 'none';
+  // Se houver forma(s) fechada(s) selecionada(s), liga/desliga o preenchimento
+  // delas imediatamente, em vez de só valer para a próxima forma inserida.
+  if (_cqFormasSelecionadas.length) {
+    const corFill = marcado ? (_cqFormaCorPreenchimento || '#f0a638') : 'none';
+    _cqFormasSelecionadas.forEach(el => {
+      const svg = el.querySelector('svg');
+      if (!svg) return;
       svg.querySelectorAll('rect, ellipse, polygon').forEach(s => s.setAttribute('fill', corFill));
-    }
+    });
   }
 }
 
@@ -6950,7 +6960,7 @@ function cqFormaMouseDown(e) {
   if ((rect.right - e.clientX < 16) && (rect.bottom - e.clientY < 16)) return;
 
   e.preventDefault();
-  _cqDragInfo = { el: e.currentTarget, startX: e.clientX, startY: e.clientY, moveu: false };
+  _cqDragInfo = { el: e.currentTarget, startX: e.clientX, startY: e.clientY, moveu: false, aditivo: e.shiftKey };
   document.addEventListener('mousemove', cqFormaMouseMove);
   document.addEventListener('mouseup', cqFormaMouseUp);
 }
@@ -6971,7 +6981,7 @@ function cqFormaMouseUp(e) {
   document.removeEventListener('mouseup', cqFormaMouseUp);
   if (!_cqDragInfo) return;
 
-  const { el, moveu } = _cqDragInfo;
+  const { el, moveu, aditivo } = _cqDragInfo;
   el.classList.remove('cq-arrastando');
   document.getElementById('cq-texto').classList.remove('cq-drop-ativo');
 
@@ -6992,69 +7002,186 @@ function cqFormaMouseUp(e) {
       _cqSavedRange = range.cloneRange();
     }
   } else {
-    // Foi só um clique (sem arrastar) — seleciona a forma como objeto
-    cqSelecionarForma(el);
+    // Foi só um clique (sem arrastar) — seleciona a forma como objeto.
+    // Com Shift pressionado, soma/retira ela da seleção múltipla atual.
+    cqSelecionarForma(el, aditivo);
   }
 
   _cqDragInfo = null;
 }
 
-/* ── Selecionar forma (clique) + Copiar/Recortar/Colar/Excluir (Ctrl+C, Ctrl+X, Ctrl+V, Delete) ── */
-let _cqFormaSelecionada = null;
-let _cqFormaClipboard = null;
+/* ── Selecionar forma(s) — clique simples, Shift+clique (soma/retira) ou
+   arraste em laço sobre a nota (seleção múltipla por retângulo) —
+   + Copiar/Recortar/Colar/Duplicar/Excluir (Ctrl+C, Ctrl+X, Ctrl+V, Ctrl+D, Delete) ── */
+let _cqFormasSelecionadas = [];   // todas as formas .cq-shape-wrap atualmente selecionadas
+let _cqFormaClipboard = [];       // outerHTML de cada forma copiada/recortada
 
-function cqSelecionarForma(el) {
-  if (_cqFormaSelecionada && _cqFormaSelecionada !== el) {
-    _cqFormaSelecionada.classList.remove('cq-forma-selecionada');
+function cqSelecionarForma(el, aditivo) {
+  if (!aditivo) {
+    _cqFormasSelecionadas.forEach(f => { if (f !== el) f.classList.remove('cq-forma-selecionada'); });
+    _cqFormasSelecionadas = [el];
+    el.classList.add('cq-forma-selecionada');
+  } else if (_cqFormasSelecionadas.includes(el)) {
+    el.classList.remove('cq-forma-selecionada');
+    _cqFormasSelecionadas = _cqFormasSelecionadas.filter(f => f !== el);
+  } else {
+    el.classList.add('cq-forma-selecionada');
+    _cqFormasSelecionadas.push(el);
   }
-  _cqFormaSelecionada = el;
-  el.classList.add('cq-forma-selecionada');
   cqAtualizarAvisoFormaPainel();
+}
+
+// Soma uma forma à seleção múltipla sem tirar as demais (usado pelo laço).
+function cqAdicionarASelecaoMultipla(el) {
+  if (_cqFormasSelecionadas.includes(el)) return;
+  el.classList.add('cq-forma-selecionada');
+  _cqFormasSelecionadas.push(el);
 }
 
 function cqDesselecionarForma() {
-  if (_cqFormaSelecionada) _cqFormaSelecionada.classList.remove('cq-forma-selecionada');
-  _cqFormaSelecionada = null;
+  _cqFormasSelecionadas.forEach(el => el.classList.remove('cq-forma-selecionada'));
+  _cqFormasSelecionadas = [];
   cqAtualizarAvisoFormaPainel();
 }
 
-// Clicar fora de qualquer forma desmarca a seleção atual
+// Clicar fora de qualquer forma desmarca a seleção atual — exceto logo
+// depois de um laço de seleção bem-sucedido (o próprio "click" que sucede
+// o mouseup do laço não pode desfazer o que acabou de ser selecionado).
+let _cqLacoRecemFinalizado = false;
 document.addEventListener('click', (e) => {
-  if (_cqFormaSelecionada && !e.target.closest('.cq-shape-wrap')) {
+  if (_cqLacoRecemFinalizado) { _cqLacoRecemFinalizado = false; return; }
+  if (_cqFormasSelecionadas.length && !e.target.closest('.cq-shape-wrap')) {
     cqDesselecionarForma();
   }
 });
 
-// Insere uma cópia (clone) da forma copiada na posição atual do cursor,
-// gerando um novo identificador de marcador de seta (evita conflito de id
-// quando existir mais de uma seta com o mesmo desenho na nota).
-function cqColarForma() {
-  if (!_cqFormaClipboard) return;
+/* ── Seleção múltipla por "laço": clicar e arrastar sobre área vazia da
+   nota (ou segurar Shift e arrastar em qualquer lugar) desenha um
+   retângulo pontilhado; toda forma tocada por ele entra na seleção. O
+   preventDefault só é aplicado quando o arraste de fato começa a virar um
+   laço (movimento > 6px), para não atrapalhar o clique comum de posicionar
+   o cursor no texto. */
+let _cqLacoInfo = null;
+
+function cqTextoMouseDown(e) {
+  if (e.button !== 0) return;
+  if (e.target.closest('.cq-shape-wrap')) return; // clique numa forma é outro fluxo (cqFormaMouseDown)
+  const foraDeTexto = e.target.id === 'cq-texto';
+  if (!e.shiftKey && !foraDeTexto) return; // clique normal em cima de texto: deixa o navegador tratar
+
+  _cqLacoInfo = { startX: e.clientX, startY: e.clientY, box: null, ativo: false, aditivo: e.shiftKey };
+  document.addEventListener('mousemove', cqTextoMouseMoveLaco);
+  document.addEventListener('mouseup', cqTextoMouseUpLaco);
+}
+
+function cqTextoMouseMoveLaco(e) {
+  if (!_cqLacoInfo) return;
+  const { startX, startY } = _cqLacoInfo;
+  const dx = e.clientX - startX, dy = e.clientY - startY;
+
+  if (!_cqLacoInfo.ativo) {
+    if (Math.hypot(dx, dy) < 6) return; // ainda não é um arraste de verdade
+    _cqLacoInfo.ativo = true;
+    const caixa = document.createElement('div');
+    caixa.id = 'cq-laco-selecao';
+    caixa.style.cssText = 'position:fixed;border:1px dashed var(--accent,#00d2ff);background:rgba(0,210,255,.12);pointer-events:none;z-index:9999;';
+    document.body.appendChild(caixa);
+    _cqLacoInfo.box = caixa;
+    if (!_cqLacoInfo.aditivo) cqDesselecionarForma();
+  }
+
+  // Suprime qualquer seleção nativa de texto que o navegador tenha iniciado
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount && !sel.isCollapsed) sel.removeAllRanges();
+
+  const box = _cqLacoInfo.box;
+  const x = Math.min(startX, e.clientX), y = Math.min(startY, e.clientY);
+  box.style.left = x + 'px'; box.style.top = y + 'px';
+  box.style.width = Math.abs(dx) + 'px'; box.style.height = Math.abs(dy) + 'px';
+
+  const laco = box.getBoundingClientRect();
+  document.querySelectorAll('#cq-texto .cq-shape-wrap').forEach(el => {
+    const r = el.getBoundingClientRect();
+    const intersecta = !(r.right < laco.left || r.left > laco.right || r.bottom < laco.top || r.top > laco.bottom);
+    el.classList.toggle('cq-forma-preview-laco', intersecta);
+  });
+}
+
+function cqTextoMouseUpLaco(e) {
+  document.removeEventListener('mousemove', cqTextoMouseMoveLaco);
+  document.removeEventListener('mouseup', cqTextoMouseUpLaco);
+  if (!_cqLacoInfo) return;
+  const info = _cqLacoInfo;
+  _cqLacoInfo = null;
+  if (!info.ativo) return; // não virou arraste — foi um clique comum, nada a fazer aqui
+
+  document.querySelectorAll('.cq-forma-preview-laco').forEach(el => {
+    el.classList.remove('cq-forma-preview-laco');
+    cqAdicionarASelecaoMultipla(el);
+  });
+  if (info.box) info.box.remove();
+  if (_cqFormasSelecionadas.length) _cqLacoRecemFinalizado = true;
+}
+
+document.getElementById('cq-texto').addEventListener('mousedown', cqTextoMouseDown);
+
+// Clona uma forma a partir do seu HTML (usado por Colar e por Duplicar):
+// gera um novo id de marcador de seta (evita conflito quando há mais de uma
+// seta com o mesmo desenho na nota) e limpa classes/atributos de estado.
+function cqClonarFormaDeHtml(html) {
   const temp = document.createElement('div');
-  temp.innerHTML = _cqFormaClipboard;
-  const novaForma = temp.firstElementChild;
-  if (!novaForma) return;
+  temp.innerHTML = html;
+  const forma = temp.firstElementChild;
+  if (!forma) return null;
 
   _cqFormaContador++;
   const novoId = 'cqseta' + _cqFormaContador;
-  const marker = novaForma.querySelector('marker');
+  const marker = forma.querySelector('marker');
   if (marker) {
     marker.id = novoId;
-    const linha = novaForma.querySelector('line[marker-end]');
+    const linha = forma.querySelector('line[marker-end]');
     if (linha) linha.setAttribute('marker-end', 'url(#' + novoId + ')');
   }
-  novaForma.classList.remove('cq-forma-selecionada', 'cq-arrastando');
-  novaForma.removeAttribute('data-drag-ativado');
+  forma.classList.remove('cq-forma-selecionada', 'cq-arrastando', 'cq-forma-preview-laco');
+  forma.removeAttribute('data-drag-ativado');
+  return forma;
+}
 
-  cqInserirHtmlNaPosicao(novaForma.outerHTML + '&nbsp;');
+// Cola todas as formas copiadas/recortadas, uma após a outra, na posição
+// atual do cursor.
+function cqColarForma() {
+  if (!_cqFormaClipboard.length) return;
+  _cqFormaClipboard.forEach(html => {
+    const nova = cqClonarFormaDeHtml(html);
+    if (nova) cqInserirHtmlNaPosicao(nova.outerHTML + '&nbsp;');
+  });
   cqAtivarDragFormas();
+}
+
+// Duplica a(s) forma(s) selecionada(s) (Ctrl+D): cada cópia é inserida logo
+// depois da original correspondente, e a seleção passa a ser a das cópias
+// — assim já dá para arrastá-las/redimensioná-las na sequência.
+function cqDuplicarFormasSelecionadas() {
+  if (!_cqFormasSelecionadas.length) return;
+  const originais = _cqFormasSelecionadas.slice();
+  cqDesselecionarForma();
+  const duplicatas = [];
+  originais.forEach(el => {
+    const nova = cqClonarFormaDeHtml(el.outerHTML);
+    if (!nova) return;
+    el.insertAdjacentElement('afterend', nova);
+    duplicatas.push(nova);
+  });
+  cqAtivarDragFormas();
+  duplicatas.forEach(d => cqAdicionarASelecaoMultipla(d));
+  cqAtualizarAvisoFormaPainel();
 }
 
 document.addEventListener('keydown', (e) => {
   const ctrlOuCmd = e.ctrlKey || e.metaKey;
 
   // Colar: funciona sempre que há algo copiado e o foco está na nota
-  if (ctrlOuCmd && e.key.toLowerCase() === 'v' && _cqFormaClipboard) {
+  if (ctrlOuCmd && e.key.toLowerCase() === 'v' && _cqFormaClipboard.length) {
     const texto = document.getElementById('cq-texto');
     const ativo = document.activeElement;
     const dentroDaNota = texto && (texto === ativo || texto.contains(ativo) || texto.contains(document.getSelection().anchorNode));
@@ -7065,21 +7192,26 @@ document.addEventListener('keydown', (e) => {
     }
   }
 
-  // Copiar / Recortar / Excluir: exigem uma forma selecionada como objeto
-  if (!_cqFormaSelecionada) return;
+  // Copiar / Recortar / Duplicar / Excluir: exigem ao menos uma forma selecionada
+  if (!_cqFormasSelecionadas.length) return;
 
   if (ctrlOuCmd && e.key.toLowerCase() === 'c') {
     e.preventDefault();
-    _cqFormaClipboard = _cqFormaSelecionada.outerHTML;
+    _cqFormaClipboard = _cqFormasSelecionadas.map(el => el.outerHTML);
   } else if (ctrlOuCmd && e.key.toLowerCase() === 'x') {
     e.preventDefault();
-    _cqFormaClipboard = _cqFormaSelecionada.outerHTML;
-    _cqFormaSelecionada.remove();
-    _cqFormaSelecionada = null;
+    _cqFormaClipboard = _cqFormasSelecionadas.map(el => el.outerHTML);
+    _cqFormasSelecionadas.forEach(el => el.remove());
+    _cqFormasSelecionadas = [];
+    cqAtualizarAvisoFormaPainel();
+  } else if (ctrlOuCmd && e.key.toLowerCase() === 'd') {
+    e.preventDefault();
+    cqDuplicarFormasSelecionadas();
   } else if (e.key === 'Delete' || e.key === 'Backspace') {
     e.preventDefault();
-    _cqFormaSelecionada.remove();
-    _cqFormaSelecionada = null;
+    _cqFormasSelecionadas.forEach(el => el.remove());
+    _cqFormasSelecionadas = [];
+    cqAtualizarAvisoFormaPainel();
   }
 });
 
