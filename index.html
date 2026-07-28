@@ -422,6 +422,19 @@ table.cq-tabela th, table.cq-tabela td{border:1px solid #7d8794;padding:.3rem .5
 table.cq-tabela thead th{background:#26313f;color:#fff;font-weight:700;}
 table.cq-tabela td[contenteditable]:focus, table.cq-tabela th [contenteditable]:focus{outline:2px solid var(--accent);outline-offset:-2px;background:#eef7ff;}
 .cq-tabela-th-cont{display:flex;align-items:center;justify-content:space-between;gap:.3rem;}
+.cq-tabela-titulo{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.85rem;color:#dbe6f0;
+  padding:.2rem .3rem;min-width:60px;outline:none;border:1px dashed transparent;}
+.cq-tabela-titulo:hover, .cq-tabela-titulo:focus{border-color:rgba(255,255,255,.25);}
+.cq-tabela-titulo:empty:before{content:attr(data-placeholder);color:#6d7686;}
+table.cq-tabela td.cq-tabela-linha-alca{background:#1c2431;color:#9ab2c9;text-align:center;min-width:22px;
+  width:22px;cursor:pointer;font-size:.68rem;user-select:none;}
+table.cq-tabela td.cq-tabela-linha-alca:hover{background:#26313f;}
+table.cq-tabela th.cq-tabela-linha-alca-cab{background:#1c2431;width:22px;}
+table.cq-tabela td.cq-tabela-cel-sel, table.cq-tabela th.cq-tabela-cel-sel{box-shadow:inset 0 0 0 2px var(--accent);}
+#cq-tabela-cor-menu{position:fixed;z-index:10000;background:#151b29;border:1px solid rgba(255,255,255,.25);
+  border-radius:8px;padding:.6rem;box-shadow:0 10px 28px rgba(0,0,0,.5);width:190px;font-family:'Rajdhani',sans-serif;}
+#cq-tabela-cor-menu .cq-tf-transp{width:100%;margin-bottom:.4rem;font-size:.68rem;padding:.3rem;border-radius:5px;
+  border:1px solid rgba(255,255,255,.2);background:#1c2431;color:#cfe0ee;cursor:pointer;}
 .cq-tabela-th-texto{outline:none;min-width:40px;flex:1 1 auto;}
 .cq-tabela-filtro-btn{border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:4px;cursor:pointer;
   font-size:.65rem;line-height:1;padding:.15rem .3rem;flex:0 0 auto;}
@@ -816,6 +829,7 @@ table.cq-tabela td[contenteditable]:focus, table.cq-tabela th [contenteditable]:
 
               <div class="cq-color-panel-title" style="margin-top:.5rem;">COR (BORDA)</div>
               <div class="cq-color-grid" id="cq-grid-forma"></div>
+              <button type="button" class="cq-tb-btn" style="width:100%;margin-top:.35rem;font-size:.68rem;" onclick="cqAplicarBordaTransparenteForma()" title="Deixa a linha da forma invisível">🚫 Linha transparente</button>
 
               <div id="cq-forma-preencher-bloco" style="display:none;margin-top:.5rem;">
                 <label style="display:flex;align-items:center;gap:.4rem;font-size:.72rem;color:var(--text2);cursor:pointer;">
@@ -830,6 +844,13 @@ table.cq-tabela td[contenteditable]:focus, table.cq-tabela th [contenteditable]:
               <label style="display:flex;align-items:center;gap:.4rem;margin-top:.5rem;font-size:.72rem;color:var(--text2);cursor:pointer;">
                 <input type="checkbox" id="cq-forma-com-texto"> Adicionar campo de texto dentro da forma
               </label>
+
+              <div class="cq-color-panel-title" style="margin-top:.5rem;">CAMADA (em relação ao texto)</div>
+              <button type="button" class="cq-tb-btn" style="width:100%;font-size:.68rem;" onclick="cqAlternarFlutuarForma()" title="Tira a forma do fluxo do texto para poder sobrepor (ou volta ela ao normal)">🔀 Alternar: no texto / flutuante (sobrepõe)</button>
+              <div style="display:flex;gap:.3rem;margin-top:.3rem;">
+                <button type="button" class="cq-tb-btn" style="flex:1;font-size:.65rem;" onclick="cqDefinirCamadaForma(true)">⬆️ Frente do texto</button>
+                <button type="button" class="cq-tb-btn" style="flex:1;font-size:.65rem;" onclick="cqDefinirCamadaForma(false)">⬇️ Atrás do texto</button>
+              </div>
 
               <button type="button" class="cq-tb-btn cq-c2" style="width:100%;margin-top:.5rem;" onclick="cqInserirForma()">➕ Inserir</button>
               <div style="font-size:.62rem;color:var(--text3);margin-top:.35rem;">Dica: depois de inserida, arraste o cantinho da forma para redimensionar. Para texto fora da forma, é só digitar normalmente do lado.</div>
@@ -853,6 +874,7 @@ table.cq-tabela td[contenteditable]:focus, table.cq-tabela th [contenteditable]:
           <button type="button" class="cq-tb-btn" onmousedown="event.preventDefault()" onclick="cqCmd('justifyLeft')" title="Alinhar à esquerda">⯇</button>
           <button type="button" class="cq-tb-btn" onmousedown="event.preventDefault()" onclick="cqCmd('justifyCenter')" title="Centralizar">☰</button>
           <button type="button" class="cq-tb-btn" onmousedown="event.preventDefault()" onclick="cqCmd('justifyRight')" title="Alinhar à direita">⯈</button>
+          <button type="button" class="cq-tb-btn" onmousedown="event.preventDefault()" onclick="cqCmd('justifyFull')" title="Justificar">▤</button>
           <button type="button" class="cq-tb-btn cq-c2" onmousedown="event.preventDefault()" onclick="cqCmd('insertUnorderedList')" title="Lista com marcadores">•≡</button>
           <button type="button" class="cq-tb-btn cq-c2" onmousedown="event.preventDefault()" onclick="cqCmd('insertOrderedList')" title="Lista numerada">1≡</button>
           <span class="cq-tb-sep"></span>
@@ -6772,16 +6794,27 @@ function cqCmd(comando, valor) {
   }
 
   const texto = document.getElementById('cq-texto');
-  texto.focus();
   const sel = window.getSelection();
-  sel.removeAllRanges();
-  if (_cqSavedRange) {
-    sel.addRange(_cqSavedRange);
-  } else {
-    const r = document.createRange();
-    r.selectNodeContents(texto);
-    r.collapse(false);
-    sel.addRange(r);
+  const temSelecaoValidaAgora = sel.rangeCount > 0 &&
+    texto.contains(sel.getRangeAt(0).startContainer) && texto.contains(sel.getRangeAt(0).endContainer);
+
+  // Só mexemos no foco/seleção se NÃO houver uma seleção válida agora mesmo
+  // (ex.: o painel foi aberto sem nada selecionado). Se o usuário já tinha
+  // selecionado um trecho — mesmo dentro de uma célula de tabela — não
+  // tocamos nisso, porque focar o container de fora podia empurrar o
+  // cursor para fora da célula e o efeito só "colava" no que era digitado
+  // depois, nunca no que já estava selecionado.
+  if (!temSelecaoValidaAgora) {
+    texto.focus();
+    sel.removeAllRanges();
+    if (_cqSavedRange) {
+      sel.addRange(_cqSavedRange);
+    } else {
+      const r = document.createRange();
+      r.selectNodeContents(texto);
+      r.collapse(false);
+      sel.addRange(r);
+    }
   }
   try { document.execCommand(comando, false, valor || null); } catch (e) {}
   if (sel.rangeCount > 0) _cqSavedRange = sel.getRangeAt(0).cloneRange();
@@ -6957,13 +6990,62 @@ function cqAoMudarEspessuraForma(valor) {
   });
 }
 
+// Deixa a linha/borda da(s) forma(s) selecionada(s) invisível (útil, por
+// exemplo, para um retângulo preenchido sem contorno visível).
+function cqAplicarBordaTransparenteForma() {
+  if (!_cqFormasSelecionadas.length) return;
+  _cqFormasSelecionadas.forEach(el => cqRecolorirForma(el, 'transparent', null));
+}
+
+// Tira a forma do fluxo normal do texto (position:absolute, mantendo o
+// mesmo lugar em que estava) para poder sobrepor o texto ao redor — ou
+// devolve ela ao fluxo normal, se já estiver flutuante.
+function cqAlternarFlutuarForma() {
+  if (!_cqFormasSelecionadas.length) return;
+  _cqFormasSelecionadas.forEach(el => {
+    if (el.style.position === 'absolute') {
+      el.style.position = '';
+      el.style.left = '';
+      el.style.top = '';
+      el.style.zIndex = '';
+    } else {
+      const left = el.offsetLeft, top = el.offsetTop;
+      el.style.position = 'absolute';
+      el.style.left = left + 'px';
+      el.style.top = top + 'px';
+      if (!el.style.zIndex) el.style.zIndex = '5';
+    }
+  });
+}
+
+// Define se a forma selecionada fica na frente (z-index alto) ou atrás
+// (z-index negativo) do texto ao redor. Funciona melhor com o modo
+// flutuante ligado, mas também altera a ordem de sobreposição no fluxo normal.
+function cqDefinirCamadaForma(frente) {
+  if (!_cqFormasSelecionadas.length) return;
+  _cqFormasSelecionadas.forEach(el => { el.style.zIndex = frente ? '5' : '-1'; });
+}
+
 function cqAplicarCor(comando, cor, chip) {
+  let aplicadoEmObjeto = false;
   if (_cqFormasSelecionadas.length && (comando === 'foreColor' || comando === 'hiliteColor')) {
+    _cqFormasSelecionadas.forEach(el => {
+      if (!el.classList.contains('cq-tabela-wrap')) return;
+      const tabela = el.querySelector('table');
+      if (!tabela) return;
+      if (comando === 'foreColor') {
+        tabela.querySelectorAll('td, th, .cq-tabela-th-texto').forEach(c => c.style.color = cor);
+        const titulo = el.querySelector('.cq-tabela-titulo');
+        if (titulo) titulo.style.color = cor;
+      } else {
+        tabela.querySelectorAll('td, th').forEach(c => { if (!c.classList.contains('cq-tabela-linha-alca')) c.style.background = cor; });
+      }
+      aplicadoEmObjeto = true;
+    });
     const propriedade = comando === 'foreColor' ? 'color' : 'backgroundColor';
-    cqAplicarPropriedadeTextoFormasSelecionadas(propriedade, cor);
-  } else {
-    cqCmd(comando, cor);
+    if (cqAplicarPropriedadeTextoFormasSelecionadas(propriedade, cor)) aplicadoEmObjeto = true;
   }
+  if (!aplicadoEmObjeto) cqCmd(comando, cor);
   const chipEl = document.getElementById('cq-chip-' + chip);
   if (chipEl) chipEl.style.background = (cor === 'transparent') ? 'repeating-linear-gradient(45deg,#555,#555 3px,#333 3px,#333 6px)' : cor;
   document.querySelectorAll('.cq-color-panel').forEach(p => p.classList.remove('aberto'));
@@ -7113,25 +7195,33 @@ function cqTabelaHtmlCabecalho(letra) {
     `<button type="button" class="cq-tabela-filtro-btn" onmousedown="event.preventDefault()" onclick="cqTabelaAbrirFiltro(event,this)" title="Filtrar">▾</button></div>`;
 }
 
+// A 1ª coluna de toda tabela é a "alça de linha" (☰) — clique nela para
+// selecionar a linha inteira e colorir o fundo. Ela não conta como coluna
+// de fórmula (a coluna A de verdade é a 2ª posição real do DOM).
+function cqTabelaHtmlAlcaLinha(numero) {
+  return `<td class="cq-tabela-linha-alca" contenteditable="false" onmousedown="cqTabelaCliqueAlcaLinha(event,this)" title="Clique para selecionar a linha (Shift = somar outras) e colorir o fundo">${numero}</td>`;
+}
+
 function cqInserirTabela() {
   const linhas  = Math.max(1, Math.min(50, parseInt(document.getElementById('cq-tabela-linhas').value, 10) || 3));
   const colunas = Math.max(1, Math.min(20, parseInt(document.getElementById('cq-tabela-colunas').value, 10) || 3));
   _cqTabelaContador++;
   const tid = 'cqtab' + _cqTabelaContador;
 
-  let theadHtml = '<tr>';
+  let theadHtml = '<tr><th class="cq-tabela-linha-alca-cab"></th>';
   for (let c = 0; c < colunas; c++) theadHtml += `<th>${cqTabelaHtmlCabecalho(cqTabelaColLetra(c))}</th>`;
   theadHtml += '</tr>';
 
   let bodyHtml = '';
   for (let l = 0; l < linhas; l++) {
-    bodyHtml += '<tr>';
+    bodyHtml += '<tr>' + cqTabelaHtmlAlcaLinha(l + 1);
     for (let c = 0; c < colunas; c++) bodyHtml += '<td contenteditable="true"></td>';
     bodyHtml += '</tr>';
   }
 
   const html = `<span class="cq-shape-wrap cq-tabela-wrap" contenteditable="false">
       <div class="cq-tabela-alca" title="Arraste para mover • Clique para selecionar (cor/cópia/exclusão)">⠿ TABELA</div>
+      <div class="cq-tabela-titulo" contenteditable="true" data-placeholder="Título da tabela…"></div>
       <div class="cq-tabela-scroll"><table class="cq-tabela" data-tid="${tid}"><thead>${theadHtml}</thead><tbody>${bodyHtml}</tbody></table></div>
       <div class="cq-tabela-controles">
         <button type="button" onmousedown="event.preventDefault()" onclick="cqTabelaAddLinha(this)" title="Adicionar linha">➕ linha</button>
@@ -7139,6 +7229,7 @@ function cqInserirTabela() {
         <button type="button" onmousedown="event.preventDefault()" onclick="cqTabelaAddColuna(this)" title="Adicionar coluna">➕ coluna</button>
         <button type="button" onmousedown="event.preventDefault()" onclick="cqTabelaRemColuna(this)" title="Remover última coluna">➖ coluna</button>
         <button type="button" onmousedown="event.preventDefault()" onclick="cqTabelaLimparFiltros(this)" title="Limpar todos os filtros desta tabela">🧹 filtros</button>
+        <button type="button" onmousedown="event.preventDefault()" onclick="cqTabelaAbrirCorFundo(this)" title="Cor de fundo: célula(s) com Ctrl+clique/arrastar, linha(s) pela alça ☰, ou a tabela toda se nada estiver selecionado">🎨 cor de fundo</button>
       </div>
     </span>&nbsp;`;
 
@@ -7148,7 +7239,7 @@ function cqInserirTabela() {
   cqAtivarTabelasNovas();
 }
 
-// Ativa (uma única vez por tabela) os eventos de fórmula/filtro/Enter.
+// Ativa (uma única vez por tabela) os eventos de fórmula/filtro/Enter/seleção de células.
 function cqAtivarTabelasNovas() {
   document.querySelectorAll('#cq-texto .cq-tabela').forEach(tabela => {
     if (tabela.dataset.ativada) return;
@@ -7156,22 +7247,28 @@ function cqAtivarTabelasNovas() {
     tabela.addEventListener('focusin', cqTabelaAoFocarCelula);
     tabela.addEventListener('focusout', cqTabelaAoDesfocarCelula);
     tabela.addEventListener('keydown', cqTabelaTeclaCelula);
+    tabela.addEventListener('mousedown', cqTabelaMouseDownCelula);
   });
 }
 
+// Enter dentro de uma célula abre uma nova linha DENTRO da mesma célula —
+// a fórmula/valor só é confirmado de fato quando o cursor sai da célula.
 function cqTabelaTeclaCelula(e) {
-  if (e.key === 'Enter' && e.target.closest('td')) { e.preventDefault(); e.target.blur(); }
+  if (e.key === 'Enter' && e.target.closest('td') && !e.target.closest('.cq-tabela-linha-alca')) {
+    e.preventDefault();
+    document.execCommand('insertLineBreak');
+  }
 }
 
 function cqTabelaAoFocarCelula(e) {
   const td = e.target.closest('td');
-  if (!td || !td.closest('tbody')) return;
+  if (!td || !td.closest('tbody') || td.classList.contains('cq-tabela-linha-alca')) return;
   if (td.dataset.formula) td.textContent = td.dataset.formula;
 }
 
 function cqTabelaAoDesfocarCelula(e) {
   const td = e.target.closest('td');
-  if (!td || !td.closest('tbody')) return;
+  if (!td || !td.closest('tbody') || td.classList.contains('cq-tabela-linha-alca')) return;
   const bruto = td.textContent.trim();
   if (bruto.startsWith('=') && bruto.length > 1) td.dataset.formula = bruto;
   else delete td.dataset.formula;
@@ -7269,7 +7366,7 @@ function cqTabelaRecalcular(wrap) {
   function valorDe(col, linha) {
     const tr = tabela.tBodies[0].rows[linha - 1];
     if (!tr) return 0;
-    const td = tr.cells[col];
+    const td = tr.cells[col + 1]; // +1: pula a coluna da alça de linha (não é dado)
     if (!td) return 0;
     const chave = col + '_' + linha;
     if (td.dataset.formula) {
@@ -7284,6 +7381,7 @@ function cqTabelaRecalcular(wrap) {
   }
   Array.from(tabela.tBodies[0].rows).forEach(tr => {
     Array.from(tr.cells).forEach(td => {
+      if (td.classList.contains('cq-tabela-linha-alca')) return;
       if (td.dataset.formula && document.activeElement !== td) {
         const r = cqTabelaAvaliarFormula(td.dataset.formula, valorDe);
         td.textContent = (typeof r === 'number') ? cqTabelaFormatarNumero(r) : r;
@@ -7292,12 +7390,13 @@ function cqTabelaRecalcular(wrap) {
   });
 }
 
-// ── Inserir/remover linha e coluna ──
+// ── Inserir/remover linha e coluna (sempre preservando a coluna-alça) ──
 function cqTabelaAddLinha(btn) {
   const tabela = btn.closest('.cq-tabela-wrap').querySelector('table');
-  const numCols = tabela.tHead.rows[0].cells.length;
+  const numDados = tabela.tHead.rows[0].cells.length - 1; // exclui a alça
   const tr = document.createElement('tr');
-  for (let i = 0; i < numCols; i++) { const td = document.createElement('td'); td.contentEditable = 'true'; tr.appendChild(td); }
+  tr.innerHTML = cqTabelaHtmlAlcaLinha(tabela.tBodies[0].rows.length + 1);
+  for (let i = 0; i < numDados; i++) { const td = document.createElement('td'); td.contentEditable = 'true'; tr.appendChild(td); }
   tabela.tBodies[0].appendChild(tr);
 }
 function cqTabelaRemLinha(btn) {
@@ -7307,7 +7406,7 @@ function cqTabelaRemLinha(btn) {
 function cqTabelaAddColuna(btn) {
   const tabela = btn.closest('.cq-tabela-wrap').querySelector('table');
   const headRow = tabela.tHead.rows[0];
-  const letra = cqTabelaColLetra(headRow.cells.length);
+  const letra = cqTabelaColLetra(headRow.cells.length - 1); // -1: a alça não conta
   const th = document.createElement('th');
   th.innerHTML = cqTabelaHtmlCabecalho(letra);
   headRow.appendChild(th);
@@ -7316,10 +7415,121 @@ function cqTabelaAddColuna(btn) {
 function cqTabelaRemColuna(btn) {
   const tabela = btn.closest('.cq-tabela-wrap').querySelector('table');
   const headRow = tabela.tHead.rows[0];
-  if (headRow.cells.length <= 1) return;
+  if (headRow.cells.length <= 2) return; // alça + pelo menos 1 coluna de dados
   const idx = headRow.cells.length - 1;
   headRow.deleteCell(idx);
   Array.from(tabela.tBodies[0].rows).forEach(tr => { if (tr.cells[idx]) tr.deleteCell(idx); });
+}
+
+// ── Seleção de linha(s)/célula(s) para colorir o fundo (não mexe na
+// ── seleção de objeto ⠿ usada para mover/copiar/excluir a tabela toda) ──
+let _cqTabelaLinhasSelecionadas = [];
+let _cqTabelaCelulasSelecionadas = [];
+let _cqTabelaCelulaDragInfo = null;
+
+function cqTabelaAtualizarVisualSelecao() {
+  document.querySelectorAll('#cq-texto .cq-tabela-cel-sel').forEach(c => c.classList.remove('cq-tabela-cel-sel'));
+  _cqTabelaLinhasSelecionadas.forEach(tr => Array.from(tr.cells).forEach(c => { if (!c.classList.contains('cq-tabela-linha-alca')) c.classList.add('cq-tabela-cel-sel'); }));
+  _cqTabelaCelulasSelecionadas.forEach(c => c.classList.add('cq-tabela-cel-sel'));
+}
+
+function cqTabelaLimparSelecao() {
+  _cqTabelaLinhasSelecionadas = [];
+  _cqTabelaCelulasSelecionadas = [];
+  cqTabelaAtualizarVisualSelecao();
+}
+
+// Clique na alcinha ☰: seleciona a linha inteira (Shift = soma/retira outras linhas).
+function cqTabelaCliqueAlcaLinha(evento, alcaTd) {
+  evento.preventDefault();
+  evento.stopPropagation();
+  const tr = alcaTd.parentElement;
+  _cqTabelaCelulasSelecionadas = [];
+  if (!evento.shiftKey) {
+    _cqTabelaLinhasSelecionadas = (_cqTabelaLinhasSelecionadas.length === 1 && _cqTabelaLinhasSelecionadas[0] === tr) ? [] : [tr];
+  } else if (_cqTabelaLinhasSelecionadas.includes(tr)) {
+    _cqTabelaLinhasSelecionadas = _cqTabelaLinhasSelecionadas.filter(t => t !== tr);
+  } else {
+    _cqTabelaLinhasSelecionadas.push(tr);
+  }
+  cqTabelaAtualizarVisualSelecao();
+}
+
+// Ctrl/Cmd + clique (ou clique e arrastar mantendo Ctrl) sobre células de
+// dados: seleciona um intervalo retangular de células avulsas para colorir,
+// sem entrar no modo de edição de texto.
+function cqTabelaMouseDownCelula(e) {
+  const td = e.target.closest('td');
+  if (!td || td.classList.contains('cq-tabela-linha-alca') || !td.closest('tbody')) return;
+  if (!(e.ctrlKey || e.metaKey)) return;
+  e.preventDefault();
+  _cqTabelaLinhasSelecionadas = [];
+  _cqTabelaCelulaDragInfo = { tabela: td.closest('table'), origem: td };
+  cqTabelaAplicarIntervaloCelulas(td, td);
+  document.addEventListener('mousemove', cqTabelaMouseMoveCelula);
+  document.addEventListener('mouseup', cqTabelaMouseUpCelula);
+}
+function cqTabelaMouseMoveCelula(e) {
+  if (!_cqTabelaCelulaDragInfo) return;
+  const alvo = document.elementFromPoint(e.clientX, e.clientY);
+  const td = alvo && alvo.closest && alvo.closest('td');
+  if (!td || td.closest('table') !== _cqTabelaCelulaDragInfo.tabela || td.classList.contains('cq-tabela-linha-alca')) return;
+  cqTabelaAplicarIntervaloCelulas(_cqTabelaCelulaDragInfo.origem, td);
+}
+function cqTabelaMouseUpCelula() {
+  _cqTabelaCelulaDragInfo = null;
+  document.removeEventListener('mousemove', cqTabelaMouseMoveCelula);
+  document.removeEventListener('mouseup', cqTabelaMouseUpCelula);
+}
+function cqTabelaAplicarIntervaloCelulas(origem, destino) {
+  const tbody = origem.closest('tbody');
+  if (!tbody || destino.closest('tbody') !== tbody) return;
+  const trO = origem.parentElement, trD = destino.parentElement;
+  const linO = Array.prototype.indexOf.call(tbody.rows, trO), linD = Array.prototype.indexOf.call(tbody.rows, trD);
+  const colO = Array.prototype.indexOf.call(trO.cells, origem), colD = Array.prototype.indexOf.call(trD.cells, destino);
+  const l1 = Math.min(linO, linD), l2 = Math.max(linO, linD);
+  const c1 = Math.min(colO, colD), c2 = Math.max(colO, colD);
+  _cqTabelaCelulasSelecionadas = [];
+  for (let l = l1; l <= l2; l++) {
+    const tr = tbody.rows[l];
+    for (let c = c1; c <= c2; c++) {
+      const td = tr.cells[c];
+      if (td && !td.classList.contains('cq-tabela-linha-alca')) _cqTabelaCelulasSelecionadas.push(td);
+    }
+  }
+  cqTabelaAtualizarVisualSelecao();
+}
+
+// ── Cor de fundo: célula(s) selecionada(s) > linha(s) selecionada(s) > ──
+// ── tabela toda de uma vez (se nada estiver selecionado no momento) ──
+function cqTabelaAbrirCorFundo(btn) {
+  document.getElementById('cq-tabela-cor-menu')?.remove();
+  const tabela = btn.closest('.cq-tabela-wrap').querySelector('table');
+  const menu = document.createElement('div');
+  menu.id = 'cq-tabela-cor-menu';
+  const rect = btn.getBoundingClientRect();
+  menu.style.top = (rect.bottom + 4) + 'px';
+  menu.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
+  const grid = CQ_PALETA_FUNDO.map(cor => `<button type="button" class="cq-color-dot" data-cor="${cor}" style="background:${cor}"></button>`).join('');
+  menu.innerHTML = `<div class="cq-color-panel-title">COR DE FUNDO</div>
+    <button type="button" class="cq-tf-transp" data-cor="transparent">🚫 Transparente</button>
+    <div class="cq-color-grid">${grid}</div>`;
+  menu.querySelectorAll('[data-cor]').forEach(b => b.onclick = () => { cqTabelaAplicarCorFundo(tabela, b.dataset.cor); menu.remove(); });
+  document.body.appendChild(menu);
+  setTimeout(() => {
+    document.addEventListener('click', function fechaMenu(e) {
+      if (!e.target.closest('#cq-tabela-cor-menu')) { menu.remove(); document.removeEventListener('click', fechaMenu); }
+    });
+  }, 0);
+}
+function cqTabelaAplicarCorFundo(tabela, cor) {
+  if (_cqTabelaCelulasSelecionadas.length) {
+    _cqTabelaCelulasSelecionadas.forEach(c => c.style.background = cor);
+  } else if (_cqTabelaLinhasSelecionadas.length) {
+    _cqTabelaLinhasSelecionadas.forEach(tr => Array.from(tr.cells).forEach(c => { if (!c.classList.contains('cq-tabela-linha-alca')) c.style.background = cor; }));
+  } else {
+    tabela.querySelectorAll('td, th').forEach(c => { if (!c.classList.contains('cq-tabela-linha-alca')) c.style.background = cor; });
+  }
 }
 
 // ── Filtro por coluna (estilo Excel: lista de valores únicos + checkbox) ──
@@ -7417,8 +7627,14 @@ const CQ_ATALHOS = [
   ['Ctrl/Cmd + Z', 'Desfazer'],
   ['Ctrl/Cmd + Y', 'Refazer'],
   ['= dentro de uma célula da tabela', 'Inicia uma fórmula, ex.: =SOMA(A1:A3), =MÉDIA(B1:B4), =A1*2'],
-  ['Enter dentro de uma célula', 'Confirma o conteúdo/fórmula digitado na célula'],
+  ['Enter dentro de uma célula', 'Abre uma nova linha dentro da MESMA célula (não confirma nem sai dela)'],
+  ['Clique na alça ☰ à esquerda da linha', 'Seleciona a linha inteira para colorir o fundo (Shift = somar outras linhas)'],
+  ['Ctrl/Cmd + clique numa célula', 'Seleciona aquela célula para colorir o fundo, sem entrar no modo de edição'],
+  ['Ctrl/Cmd + clique e arrastar sobre células', 'Seleciona um intervalo retangular de células para colorir de uma vez'],
   ['▾ no título de uma coluna', 'Abre o filtro (estilo Excel) daquela coluna'],
+  ['🎨 cor de fundo (na tabela)', 'Colore células/linhas selecionadas, ou a tabela toda se nada estiver marcado'],
+  ['🔀 Alternar no texto/flutuante (painel FORMAS)', 'Tira a forma do fluxo do texto para poder sobrepor (ou volta ao normal)'],
+  ['⬆️/⬇️ Frente/Atrás do texto (painel FORMAS)', 'Define se a forma fica acima ou abaixo do texto ao redor'],
 ];
 
 function cqAbrirAtalhos() {
@@ -7475,8 +7691,23 @@ function cqFormaMouseMove(e) {
     _cqDragInfo.moveu = true;
     const grupo = (_cqFormasSelecionadas.length > 1 && _cqFormasSelecionadas.includes(_cqDragInfo.el))
       ? _cqFormasSelecionadas : [_cqDragInfo.el];
+    _cqDragInfo.posIniciais = grupo.map(f => ({
+      el: f, flutuante: f.style.position === 'absolute',
+      left: parseFloat(f.style.left) || 0, top: parseFloat(f.style.top) || 0
+    }));
     grupo.forEach(f => f.classList.add('cq-arrastando'));
     document.getElementById('cq-texto').classList.add('cq-drop-ativo');
+  }
+  // Formas "flutuantes" (fora do fluxo do texto) se movem direto pelo
+  // left/top, na proporção do zoom da folha — arrastar no fluxo normal
+  // continua usando a inserção por posição do cursor, feita no mouseup.
+  if (_cqDragInfo.moveu && _cqDragInfo.posIniciais) {
+    const escala = (typeof _cqZoomFolhaAtual === 'number' ? _cqZoomFolhaAtual : 100) / 100;
+    _cqDragInfo.posIniciais.forEach(info => {
+      if (!info.flutuante) return;
+      info.el.style.left = (info.left + dx / escala) + 'px';
+      info.el.style.top = (info.top + dy / escala) + 'px';
+    });
   }
 }
 
@@ -7490,6 +7721,10 @@ function cqFormaMouseUp(e) {
     ? _cqFormasSelecionadas : [el];
   grupoArrastado.forEach(f => f.classList.remove('cq-arrastando'));
   document.getElementById('cq-texto').classList.remove('cq-drop-ativo');
+
+  // Forma flutuante: a posição já foi atualizada ao vivo pelo left/top
+  // durante o arraste (cqFormaMouseMove) — não há nada mais a fazer aqui.
+  if (el.style.position === 'absolute') { _cqDragInfo = null; return; }
 
   if (moveu) {
     // Foi um arraste — mover a(s) forma(s) para a posição onde o mouse foi solto
@@ -7577,11 +7812,19 @@ document.addEventListener('click', (e) => {
   // Clicar na barra de ferramentas (ex.: abrir o painel FORMAS/TABELA ou
   // escolher uma cor) não pode desmarcar a forma/tabela selecionada — senão
   // a seleção se perde antes de o clique na cor chegar a valer. O mesmo
-  // vale para o menu de filtro da tabela, que fica fora dela (no body).
-  if (e.target.closest('#cq-toolbar') || e.target.closest('#cq-tabela-filtro-menu')) return;
-  const editandoCelula = e.target.closest('.cq-tabela-wrap td, .cq-tabela-wrap th, .cq-tabela-controles, .cq-tabela-filtro-btn');
+  // vale para os menus de filtro/cor da tabela, que ficam fora dela (no body).
+  if (e.target.closest('#cq-toolbar') || e.target.closest('#cq-tabela-filtro-menu') || e.target.closest('#cq-tabela-cor-menu')) return;
+  const editandoCelula = e.target.closest('.cq-tabela-wrap td, .cq-tabela-wrap th, .cq-tabela-controles, .cq-tabela-filtro-btn, .cq-tabela-titulo');
   if (_cqFormasSelecionadas.length && (editandoCelula || !e.target.closest('.cq-shape-wrap'))) {
     cqDesselecionarForma();
+  }
+  // Clicar numa célula pra editar (sem Ctrl) ou clicar totalmente fora da
+  // tabela limpa a seleção de linha(s)/célula(s) usada para colorir fundo.
+  const cliqueNormalEmCelula = e.target.closest('.cq-tabela-wrap td, .cq-tabela-wrap th') &&
+    !e.target.closest('.cq-tabela-linha-alca') && !(e.ctrlKey || e.metaKey);
+  if ((cliqueNormalEmCelula || !e.target.closest('.cq-tabela-wrap')) &&
+      (_cqTabelaLinhasSelecionadas.length || _cqTabelaCelulasSelecionadas.length)) {
+    cqTabelaLimparSelecao();
   }
 });
 
