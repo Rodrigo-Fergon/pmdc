@@ -416,7 +416,8 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
   background:#1c2431;color:#9ab2c9;padding:.2rem .5rem;border-radius:5px 5px 0 0;cursor:grab;
   user-select:none;display:flex;align-items:center;gap:.3rem;border:1px solid rgba(0,0,0,.25);border-bottom:none;}
 .cq-tabela-wrap.cq-arrastando .cq-tabela-alca{cursor:grabbing;}
-.cq-tabela-scroll{overflow:auto;max-width:100%;border:1px solid rgba(0,0,0,.25);}
+.cq-tabela-scroll{overflow:visible;max-width:100%;}
+.cq-tabela-zoom{transform-origin:top left;display:inline-block;border:1px solid rgba(0,0,0,.25);}
 table.cq-tabela{border-collapse:collapse;background:#fffdf6;font-family:Arial,Helvetica,sans-serif;font-size:.85rem;}
 table.cq-tabela th, table.cq-tabela td{border:1px solid #7d8794;padding:.3rem .5rem;min-width:70px;color:#222;vertical-align:top;}
 table.cq-tabela thead th{background:#26313f;color:#fff;font-weight:700;}
@@ -440,7 +441,12 @@ table.cq-tabela td.cq-tabela-cel-sel, table.cq-tabela th.cq-tabela-cel-sel{box-s
   font-size:.65rem;line-height:1;padding:.15rem .3rem;flex:0 0 auto;}
 .cq-tabela-filtro-btn:hover{background:rgba(255,255,255,.32);}
 .cq-tabela-filtro-btn.cq-filtro-ativo{background:var(--accent2);color:#04231c;}
-.cq-tabela-controles{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.3rem;}
+.cq-tabela-controles{display:none;flex-wrap:wrap;gap:.3rem;margin-top:.3rem;}
+.cq-tabela-wrap.cq-controles-visiveis .cq-tabela-controles{display:flex;}
+.cq-tabela-resize-alca{position:absolute;right:-2px;bottom:-2px;width:14px;height:14px;cursor:nwse-resize;
+  background:linear-gradient(135deg,transparent 0 50%,var(--accent) 50%);border-radius:0 0 4px 0;
+  display:none;z-index:5;}
+.cq-tabela-wrap.cq-controles-visiveis .cq-tabela-resize-alca{display:block;}
 .cq-tabela-controles button{font-size:.65rem;padding:.25rem .5rem;border-radius:5px;border:1px solid rgba(255,255,255,.2);
   background:#151b29;color:#cfe0ee;cursor:pointer;}
 .cq-tabela-controles button:hover{filter:brightness(1.3);}
@@ -6699,6 +6705,7 @@ function cqNovaNota() {
   cqIniciarObservadorPaginacao();
   cqAtualizarPaginacao();
   cqRenderLista();
+  _cqHistoricoIniciar();
   document.getElementById('cq-titulo').focus();
 }
 
@@ -6723,6 +6730,7 @@ function cqSelecionarNota(id) {
   cqRenderLista();
   cqAtivarDragFormas();
   cqAtivarTabelasNovas();
+  _cqHistoricoIniciar();
 }
 
 let _cqSavedRange = null;
@@ -6754,6 +6762,16 @@ function cqSalvarSelecao() {
 // seta, retângulo etc.), que é um bloco "não editável" por dentro e às
 // vezes confunde o comportamento padrão do navegador ao apagar.
 document.getElementById('cq-texto').addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+    e.preventDefault();
+    cqHistoricoDesfazer();
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
+    e.preventDefault();
+    cqHistoricoRefazer();
+    return;
+  }
   if (e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== ' ') return;
   const sel = window.getSelection();
   if (sel.rangeCount === 0) return;
@@ -6775,6 +6793,82 @@ document.getElementById('cq-texto').addEventListener('keydown', function(e) {
   _cqSavedRange = range.cloneRange();
 });
 
+/* ── Histórico próprio de Desfazer/Refazer da Consulta Rápida ──
+   O undo/redo nativo do navegador (document.execCommand) só enxerga
+   edições de texto simples digitadas — ele NÃO percebe ações feitas via
+   JavaScript (inserir tabela, apagar linha, adicionar/mover forma, mudar
+   cor, redimensionar etc.). Por isso os botões ↶ ↷ podiam não desfazer a
+   última coisa que você realmente fez. Aqui guardamos uma "foto" do HTML
+   inteiro da nota a cada mudança (via MutationObserver, com uma pequena
+   espera pra não tirar uma foto por tecla digitada) e navegamos por essas
+   fotos — cobre texto e qualquer alteração de tabela/forma igualmente. */
+const _cqHistorico = { pilha: [], indice: -1, ignorando: false };
+let _cqHistoricoTimer = null;
+let _cqHistoricoObservador = null;
+
+function _cqHistoricoSalvarAgora() {
+  const texto = document.getElementById('cq-texto');
+  if (!texto || _cqHistorico.ignorando) return;
+  const html = texto.innerHTML;
+  if (_cqHistorico.pilha[_cqHistorico.indice] === html) return; // nada mudou de fato
+  // Se estávamos no meio da pilha (depois de um ou mais "desfazer") e uma
+  // ação nova acontece agora, o "futuro" (refazer antigo) deixa de existir.
+  _cqHistorico.pilha = _cqHistorico.pilha.slice(0, _cqHistorico.indice + 1);
+  _cqHistorico.pilha.push(html);
+  if (_cqHistorico.pilha.length > 100) _cqHistorico.pilha.shift();
+  _cqHistorico.indice = _cqHistorico.pilha.length - 1;
+}
+
+function _cqHistoricoAgendar() {
+  if (_cqHistorico.ignorando) return;
+  clearTimeout(_cqHistoricoTimer);
+  _cqHistoricoTimer = setTimeout(_cqHistoricoSalvarAgora, 400);
+}
+
+// Chamado sempre que uma nota é aberta (nova ou existente): reinicia a
+// pilha de histórico com o estado atual como ponto de partida e garante
+// que o observador de mudanças esteja ligado (só cria um único observador
+// na vida da página).
+function _cqHistoricoIniciar() {
+  clearTimeout(_cqHistoricoTimer);
+  const texto = document.getElementById('cq-texto');
+  if (!texto) return;
+  _cqHistorico.pilha = [texto.innerHTML];
+  _cqHistorico.indice = 0;
+  if (!_cqHistoricoObservador) {
+    _cqHistoricoObservador = new MutationObserver(_cqHistoricoAgendar);
+  } else {
+    _cqHistoricoObservador.disconnect();
+  }
+  _cqHistoricoObservador.observe(texto, { childList: true, subtree: true, characterData: true, attributes: true });
+}
+
+function cqHistoricoDesfazer() {
+  clearTimeout(_cqHistoricoTimer);
+  _cqHistoricoSalvarAgora(); // garante que a ação mais recente entrou na pilha antes de voltar
+  if (_cqHistorico.indice <= 0) return;
+  _cqHistorico.indice--;
+  _cqHistoricoRestaurar();
+}
+
+function cqHistoricoRefazer() {
+  if (_cqHistorico.indice >= _cqHistorico.pilha.length - 1) return;
+  _cqHistorico.indice++;
+  _cqHistoricoRestaurar();
+}
+
+function _cqHistoricoRestaurar() {
+  const texto = document.getElementById('cq-texto');
+  if (!texto) return;
+  _cqHistorico.ignorando = true;
+  texto.innerHTML = _cqHistorico.pilha[_cqHistorico.indice];
+  // Depois de trocar o HTML pelo de trás/frente do histórico, religa o
+  // arraste de formas e as tabelas (os elementos foram recriados do zero).
+  cqAtivarDragFormas();
+  cqAtivarTabelasNovas();
+  setTimeout(() => { _cqHistorico.ignorando = false; }, 0);
+}
+
 // Comandos de formatação simples que, quando há forma(s) selecionada(s),
 // passam a atuar sobre o texto interno delas (em vez da seleção de texto
 // da nota) — assim a barra de edição também formata o que foi selecionado
@@ -6782,6 +6876,8 @@ document.getElementById('cq-texto').addEventListener('keydown', function(e) {
 const CQ_COMANDOS_FORMA_TOGGLE = { bold: 'negrito', italic: 'italico', underline: 'sublinhado', strikeThrough: 'tachado' };
 
 function cqCmd(comando, valor) {
+  if (comando === 'undo') { cqHistoricoDesfazer(); return; }
+  if (comando === 'redo') { cqHistoricoRefazer(); return; }
   if (_cqFormasSelecionadas.length) {
     if (CQ_COMANDOS_FORMA_TOGGLE[comando]) {
       if (cqAplicarEstiloTextoFormasSelecionadas(CQ_COMANDOS_FORMA_TOGGLE[comando])) return;
@@ -7222,7 +7318,7 @@ function cqInserirTabela() {
   const html = `<span class="cq-shape-wrap cq-tabela-wrap" contenteditable="false">
       <div class="cq-tabela-alca" title="Arraste para mover • Clique para selecionar (cor/cópia/exclusão)">⠿ TABELA</div>
       <div class="cq-tabela-titulo" contenteditable="true" data-placeholder="Título da tabela…"></div>
-      <div class="cq-tabela-scroll"><table class="cq-tabela" data-tid="${tid}"><thead>${theadHtml}</thead><tbody>${bodyHtml}</tbody></table></div>
+      <div class="cq-tabela-scroll"><div class="cq-tabela-zoom" data-fator="1"><table class="cq-tabela" data-tid="${tid}"><thead>${theadHtml}</thead><tbody>${bodyHtml}</tbody></table></div></div>
       <div class="cq-tabela-controles">
         <button type="button" onmousedown="event.preventDefault()" onclick="cqTabelaAddLinha(this)" title="Adicionar linha">➕ linha</button>
         <button type="button" onmousedown="event.preventDefault()" onclick="cqTabelaRemLinha(this)" title="Remover última linha">➖ linha</button>
@@ -7230,7 +7326,10 @@ function cqInserirTabela() {
         <button type="button" onmousedown="event.preventDefault()" onclick="cqTabelaRemColuna(this)" title="Remover última coluna">➖ coluna</button>
         <button type="button" onmousedown="event.preventDefault()" onclick="cqTabelaLimparFiltros(this)" title="Limpar todos os filtros desta tabela">🧹 filtros</button>
         <button type="button" onmousedown="event.preventDefault()" onclick="cqTabelaAbrirCorFundo(this)" title="Cor de fundo: célula(s) com Ctrl+clique/arrastar, linha(s) pela alça ☰, ou a tabela toda se nada estiver selecionado">🎨 cor de fundo</button>
+        <button type="button" onmousedown="event.preventDefault()" onclick="cqTabelaAbrirCorLinha(this)" title="Cor da linha (bordas): célula(s) com Ctrl+clique/arrastar, linha(s) pela alça ☰, ou a tabela toda se nada estiver selecionado">🖊️ cor da linha</button>
+        <button type="button" onmousedown="event.preventDefault()" onclick="cqTabelaAbrirCorFonte(this)" title="Cor da letra: célula(s) com Ctrl+clique/arrastar, linha(s) pela alça ☰, ou a tabela toda se nada estiver selecionado">🔤 cor da letra</button>
       </div>
+      <div class="cq-tabela-resize-alca" title="Arraste para redimensionar a tabela (proporcional)" onmousedown="cqTabelaIniciarResize(event, this)"></div>
     </span>&nbsp;`;
 
   cqInserirHtmlNaPosicao(html);
@@ -7251,13 +7350,39 @@ function cqAtivarTabelasNovas() {
   });
 }
 
-// Enter dentro de uma célula abre uma nova linha DENTRO da mesma célula —
-// a fórmula/valor só é confirmado de fato quando o cursor sai da célula.
+// Enter dentro de uma célula CONFIRMA a edição (sai da célula, o que já
+// aciona o cálculo da fórmula via cqTabelaAoDesfocarCelula) e leva o
+// cursor para a célula de baixo, na mesma coluna. Se não houver linha
+// abaixo, apenas confirma e sai. A quebra de texto quando o conteúdo
+// ultrapassa a largura da célula acontece sozinha (contenteditable com
+// quebra automática) — não é mais acionada pelo Enter.
 function cqTabelaTeclaCelula(e) {
   if (e.key === 'Enter' && e.target.closest('td') && !e.target.closest('.cq-tabela-linha-alca')) {
     e.preventDefault();
-    document.execCommand('insertLineBreak');
+    const td = e.target.closest('td');
+    const tr = td.parentElement;
+    const tbody = tr.parentElement;
+    const colIndex = td.cellIndex;
+    const rowIndex = Array.prototype.indexOf.call(tbody.rows, tr);
+    const proxLinha = tbody.rows[rowIndex + 1];
+    const proxCelula = proxLinha ? proxLinha.cells[colIndex] : null;
+    td.blur(); // confirma: dispara cqTabelaAoDesfocarCelula (calcula fórmula/recalcula tabela)
+    if (proxCelula && !proxCelula.classList.contains('cq-tabela-linha-alca')) {
+      proxCelula.focus();
+      _cqTabelaPosicionarCursorNoFim(proxCelula);
+    }
   }
+}
+
+// Coloca o cursor de texto no final do conteúdo de uma célula (usado ao
+// pular para a célula de baixo com Enter).
+function _cqTabelaPosicionarCursorNoFim(el) {
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  range.collapse(false);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
 }
 
 function cqTabelaAoFocarCelula(e) {
@@ -7459,8 +7584,12 @@ function cqTabelaCliqueAlcaLinha(evento, alcaTd) {
 // dados: seleciona um intervalo retangular de células avulsas para colorir,
 // sem entrar no modo de edição de texto.
 function cqTabelaMouseDownCelula(e) {
-  const td = e.target.closest('td');
-  if (!td || td.classList.contains('cq-tabela-linha-alca') || !td.closest('tbody')) return;
+  // Aceita tanto <td> (linhas de dados) quanto <th> (linha de título do
+  // cabeçalho) — antes só <td> era aceito, por isso não dava pra colorir
+  // a linha inicial (cabeçalho) de cada coluna.
+  const td = e.target.closest('td, th');
+  if (!td || td.classList.contains('cq-tabela-linha-alca') || td.classList.contains('cq-tabela-linha-alca-cab')) return;
+  if (!td.closest('tbody') && !td.closest('thead')) return;
   if (!(e.ctrlKey || e.metaKey)) return;
   e.preventDefault();
   _cqTabelaLinhasSelecionadas = [];
@@ -7472,8 +7601,9 @@ function cqTabelaMouseDownCelula(e) {
 function cqTabelaMouseMoveCelula(e) {
   if (!_cqTabelaCelulaDragInfo) return;
   const alvo = document.elementFromPoint(e.clientX, e.clientY);
-  const td = alvo && alvo.closest && alvo.closest('td');
-  if (!td || td.closest('table') !== _cqTabelaCelulaDragInfo.tabela || td.classList.contains('cq-tabela-linha-alca')) return;
+  const td = alvo && alvo.closest && alvo.closest('td, th');
+  if (!td || td.closest('table') !== _cqTabelaCelulaDragInfo.tabela ||
+      td.classList.contains('cq-tabela-linha-alca') || td.classList.contains('cq-tabela-linha-alca-cab')) return;
   cqTabelaAplicarIntervaloCelulas(_cqTabelaCelulaDragInfo.origem, td);
 }
 function cqTabelaMouseUpCelula() {
@@ -7482,6 +7612,24 @@ function cqTabelaMouseUpCelula() {
   document.removeEventListener('mouseup', cqTabelaMouseUpCelula);
 }
 function cqTabelaAplicarIntervaloCelulas(origem, destino) {
+  const origemNoCabecalho = !!origem.closest('thead');
+  if (origemNoCabecalho) {
+    // Dentro do cabeçalho só existe uma linha de título — o intervalo vira
+    // apenas um intervalo de colunas nessa linha.
+    if (!destino.closest('thead') || origem.closest('table') !== destino.closest('table')) return;
+    const linhaCab = origem.parentElement;
+    if (destino.parentElement !== linhaCab) return;
+    const colO = Array.prototype.indexOf.call(linhaCab.cells, origem);
+    const colD = Array.prototype.indexOf.call(linhaCab.cells, destino);
+    const c1 = Math.min(colO, colD), c2 = Math.max(colO, colD);
+    _cqTabelaCelulasSelecionadas = [];
+    for (let c = c1; c <= c2; c++) {
+      const th = linhaCab.cells[c];
+      if (th && !th.classList.contains('cq-tabela-linha-alca-cab')) _cqTabelaCelulasSelecionadas.push(th);
+    }
+    cqTabelaAtualizarVisualSelecao();
+    return;
+  }
   const tbody = origem.closest('tbody');
   if (!tbody || destino.closest('tbody') !== tbody) return;
   const trO = origem.parentElement, trD = destino.parentElement;
@@ -7531,6 +7679,121 @@ function cqTabelaAplicarCorFundo(tabela, cor) {
     tabela.querySelectorAll('td, th').forEach(c => { if (!c.classList.contains('cq-tabela-linha-alca')) c.style.background = cor; });
   }
 }
+
+// ── Cor da linha (bordas da grade): mesma lógica de prioridade da cor de ──
+// ── fundo (célula(s) selecionada(s) > linha(s) selecionada(s) > tabela) ──
+function cqTabelaAbrirCorLinha(btn) {
+  document.getElementById('cq-tabela-cor-menu')?.remove();
+  const tabela = btn.closest('.cq-tabela-wrap').querySelector('table');
+  const menu = document.createElement('div');
+  menu.id = 'cq-tabela-cor-menu';
+  const rect = btn.getBoundingClientRect();
+  menu.style.top = (rect.bottom + 4) + 'px';
+  menu.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
+  const grid = CQ_PALETA_LETRA.map(cor => `<button type="button" class="cq-color-dot" data-cor="${cor}" style="background:${cor}"></button>`).join('');
+  menu.innerHTML = `<div class="cq-color-panel-title">COR DA LINHA</div>
+    <div class="cq-color-grid">${grid}</div>`;
+  menu.querySelectorAll('[data-cor]').forEach(b => b.onclick = () => { cqTabelaAplicarCorLinha(tabela, b.dataset.cor); menu.remove(); });
+  document.body.appendChild(menu);
+  setTimeout(() => {
+    document.addEventListener('click', function fechaMenu(e) {
+      if (!e.target.closest('#cq-tabela-cor-menu')) { menu.remove(); document.removeEventListener('click', fechaMenu); }
+    });
+  }, 0);
+}
+function cqTabelaAplicarCorLinha(tabela, cor) {
+  if (_cqTabelaCelulasSelecionadas.length) {
+    _cqTabelaCelulasSelecionadas.forEach(c => c.style.borderColor = cor);
+  } else if (_cqTabelaLinhasSelecionadas.length) {
+    _cqTabelaLinhasSelecionadas.forEach(tr => Array.from(tr.cells).forEach(c => { if (!c.classList.contains('cq-tabela-linha-alca')) c.style.borderColor = cor; }));
+  } else {
+    tabela.querySelectorAll('td, th').forEach(c => { if (!c.classList.contains('cq-tabela-linha-alca')) c.style.borderColor = cor; });
+  }
+}
+
+// ── Cor da letra: mesma lógica de prioridade das outras cores ──
+function cqTabelaAbrirCorFonte(btn) {
+  document.getElementById('cq-tabela-cor-menu')?.remove();
+  const tabela = btn.closest('.cq-tabela-wrap').querySelector('table');
+  const menu = document.createElement('div');
+  menu.id = 'cq-tabela-cor-menu';
+  const rect = btn.getBoundingClientRect();
+  menu.style.top = (rect.bottom + 4) + 'px';
+  menu.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
+  const grid = CQ_PALETA_LETRA.map(cor => `<button type="button" class="cq-color-dot" data-cor="${cor}" style="background:${cor}"></button>`).join('');
+  menu.innerHTML = `<div class="cq-color-panel-title">COR DA LETRA</div>
+    <div class="cq-color-grid">${grid}</div>`;
+  menu.querySelectorAll('[data-cor]').forEach(b => b.onclick = () => { cqTabelaAplicarCorFonte(tabela, b.dataset.cor); menu.remove(); });
+  document.body.appendChild(menu);
+  setTimeout(() => {
+    document.addEventListener('click', function fechaMenu(e) {
+      if (!e.target.closest('#cq-tabela-cor-menu')) { menu.remove(); document.removeEventListener('click', fechaMenu); }
+    });
+  }, 0);
+}
+function cqTabelaAplicarCorFonte(tabela, cor) {
+  if (_cqTabelaCelulasSelecionadas.length) {
+    _cqTabelaCelulasSelecionadas.forEach(c => c.style.color = cor);
+  } else if (_cqTabelaLinhasSelecionadas.length) {
+    _cqTabelaLinhasSelecionadas.forEach(tr => Array.from(tr.cells).forEach(c => { if (!c.classList.contains('cq-tabela-linha-alca')) c.style.color = cor; }));
+  } else {
+    tabela.querySelectorAll('td, th').forEach(c => { if (!c.classList.contains('cq-tabela-linha-alca')) c.style.color = cor; });
+  }
+}
+
+// ── Redimensionar a tabela pelo canto, proporcionalmente (largura E ──
+// ── altura/fonte crescem ou diminuem juntas, mantendo as proporções) ──
+function cqTabelaIniciarResize(e, alca) {
+  e.preventDefault();
+  e.stopPropagation();
+  const wrap = alca.closest('.cq-tabela-wrap');
+  const zoom = wrap.querySelector('.cq-tabela-zoom');
+  const scroll = wrap.querySelector('.cq-tabela-scroll');
+  const fatorInicial = parseFloat(zoom.dataset.fator || '1');
+
+  // Guarda a largura/altura "naturais" (sem escala) uma única vez, na
+  // primeira vez que a tabela é redimensionada.
+  if (!zoom.dataset.largNat) {
+    const r = zoom.getBoundingClientRect();
+    zoom.dataset.largNat = r.width / fatorInicial;
+    zoom.dataset.altNat = r.height / fatorInicial;
+  }
+  const largNat = parseFloat(zoom.dataset.largNat);
+  const altNat = parseFloat(zoom.dataset.altNat);
+  const inicioX = e.clientX;
+  const larguraInicialPx = largNat * fatorInicial;
+
+  function mover(ev) {
+    const delta = ev.clientX - inicioX;
+    let novoFator = (larguraInicialPx + delta) / largNat;
+    novoFator = Math.max(0.4, Math.min(3, novoFator)); // limite: 40% a 300%
+    zoom.dataset.fator = novoFator;
+    zoom.style.transform = `scale(${novoFator})`;
+    zoom.style.width = largNat + 'px';
+    zoom.style.height = altNat + 'px';
+    scroll.style.width = (largNat * novoFator) + 'px';
+    scroll.style.height = (altNat * novoFator) + 'px';
+  }
+  function soltar() {
+    document.removeEventListener('mousemove', mover);
+    document.removeEventListener('mouseup', soltar);
+    _cqHistoricoAgendar(); // guarda o novo tamanho no histórico de desfazer/refazer
+  }
+  document.addEventListener('mousemove', mover);
+  document.addEventListener('mouseup', soltar);
+}
+
+// ── Mostra a barra de comandos e a alça de redimensionar só quando a ──
+// ── tabela (ou uma célula dela) é clicada com o botão esquerdo; some ──
+// ── de novo ao clicar fora dela. ──
+document.addEventListener('mousedown', function(e) {
+  if (e.button !== 0) return; // só botão esquerdo
+  const wrapClicado = e.target.closest('.cq-tabela-wrap');
+  document.querySelectorAll('.cq-tabela-wrap.cq-controles-visiveis').forEach(w => {
+    if (w !== wrapClicado) w.classList.remove('cq-controles-visiveis');
+  });
+  if (wrapClicado) wrapClicado.classList.add('cq-controles-visiveis');
+});
 
 // ── Filtro por coluna (estilo Excel: lista de valores únicos + checkbox) ──
 function cqTabelaAbrirFiltro(evento, btn) {
@@ -8129,11 +8392,24 @@ function cqImprimirNota() {
   const conteudo = document.getElementById('cq-texto').innerHTML;
   const w = window.open('', '_blank', 'width=800,height=900');
   if (!w) { alert('Seu navegador bloqueou a janela de impressão. Permita pop-ups para este site e tente novamente.'); return; }
+  // Reaproveita TODO o CSS já usado na tela (as mesmas regras de tabela,
+  // forma, cor de fundo/linha/letra etc.) — assim a impressão fica
+  // garantidamente igual à tela, sem duplicar regras à mão (o que corria
+  // o risco de uma versão ficar desatualizada em relação à outra).
+  const estilosDaTela = Array.from(document.querySelectorAll('style')).map(s => s.innerHTML).join('\n');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${escHtml(titulo)}</title>
+    <style>${estilosDaTela}</style>
     <style>
       @page{size:A4;margin:1.8cm;}
-      body{font-family:Arial,Helvetica,sans-serif;color:#000;line-height:1.6;}
+      body{font-family:Arial,Helvetica,sans-serif;color:#000;line-height:1.6;background:#fff;}
       h1{font-size:20pt;margin-bottom:1rem;}
+      /* Comandos da tabela (➕linha, cores etc.), a alça de mover/arrastar
+         e a coluna/linha de numeração (☰) são controles da TELA — nunca
+         devem aparecer na impressão, só o conteúdo real da tabela. */
+      .cq-tabela-controles, .cq-tabela-resize-alca, .cq-tabela-alca{display:none!important;}
+      .cq-tabela-wrap{border:none!important;margin:6px 0!important;}
+      table.cq-tabela td.cq-tabela-linha-alca, table.cq-tabela th.cq-tabela-linha-alca-cab{display:none!important;}
+      .cq-shape-wrap.cq-forma-selecionada, .cq-tabela-wrap.cq-forma-selecionada{outline:none!important;box-shadow:none!important;}
     </style>
     </head><body>
       <h1>${escHtml(titulo)}</h1>
@@ -11183,30 +11459,34 @@ function epFecharSalvar() {
   document.getElementById('modal-salvar-parecer').style.display = 'none';
 }
 
-function epSalvarPDF() {
-  document.getElementById('modal-salvar-parecer').style.display = 'none';
-  const el  = document.getElementById('ep-preview-parecer');
-  const processo = document.getElementById('ep-processo').value.trim();
-  const nome = processo ? `Parecer_${processo.replace(/\//g,'-')}` : 'Parecer_Processual';
-  const opt = {
-    margin:       [20, 25, 20, 30],  /* topo | direita | base | esquerda (mm) — equivalente 2cm/2.5cm/2cm/3cm */
-    filename:     nome + '.pdf',
-    image:        { type:'jpeg', quality:0.98 },
-    html2canvas:  { scale:2, useCORS:true },
-    jsPDF:        { unit:'mm', format:'a4', orientation:'portrait' }
-  };
-  const script = document.createElement('script');
-  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-  script.onload = () => html2pdf().set(opt).from(el).save();
-  script.onerror = () => alert('Não foi possível carregar a biblioteca de PDF. Verifique sua conexão com a internet.');
-  document.head.appendChild(script);
+// Monta o nome do arquivo a partir do despacho selecionado na tela de
+// Emissão de Despacho (passo 1), somando servidor e processo quando
+// preenchidos, para diferenciar despachos do mesmo tipo.
+function _epNomeArquivoDespacho() {
+  const selDesp = document.getElementById('ep-despacho');
+  const nomeDespacho = (selDesp && selDesp.value && selDesp.selectedOptions[0])
+    ? selDesp.selectedOptions[0].textContent.trim()
+    : 'Despacho';
+  const servidorEl = document.getElementById('ep-nome-servidor');
+  const processoEl = document.getElementById('ep-processo');
+  const servidor = servidorEl ? servidorEl.value.trim() : '';
+  const processo = processoEl ? processoEl.value.trim() : '';
+  const partes = [nomeDespacho];
+  if (servidor) partes.push(servidor);
+  if (processo) partes.push(processo.replace(/\//g, '-'));
+  // Remove caracteres não permitidos em nome de arquivo do Windows/macOS.
+  return partes.join(' - ').replace(/[\\/:*?"<>|]/g, '-');
 }
 
-function epImprimir() {
-  document.getElementById('modal-salvar-parecer').style.display = 'none';
+// Abre a janela "limpa" (mesmo HTML/CSS usado tanto para Imprimir quanto
+// para Salvar) — garante que o PDF salvo pelo navegador (Ctrl+P → Salvar
+// como PDF) saia IDÊNTICO ao que é impresso, já que os dois caminhos
+// passam pelo mesmo mecanismo do navegador (window.print()) em vez do
+// antigo html2canvas/html2pdf, que fotografava o preview e podia divergir.
+function _epMontarJanelaImpressao(tituloArquivo) {
   const conteudo = document.getElementById('ep-preview-parecer').innerHTML;
   const janela = window.open('', '_blank');
-  janela.document.write(`<!DOCTYPE html><html><head><title>Despacho</title>
+  janela.document.write(`<!DOCTYPE html><html><head><title>${escHtml(tituloArquivo)}</title>
     <style>
       *{box-sizing:border-box;margin:0;padding:0;}
       body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.8;color:#000;background:#fff;}
@@ -11220,6 +11500,21 @@ function epImprimir() {
     </style></head><body><div class="conteudo">${conteudo}</div></body></html>`);
   janela.document.close();
   janela.focus();
+  return janela;
+}
+
+function epSalvarPDF() {
+  document.getElementById('modal-salvar-parecer').style.display = 'none';
+  const janela = _epMontarJanelaImpressao(_epNomeArquivoDespacho());
+  // Não fecha a janela automaticamente aqui: ao "Salvar", o usuário precisa
+  // de tempo para escolher "Salvar como PDF" no diálogo de impressão do
+  // navegador e confirmar o nome do arquivo (sugerido a partir do <title>).
+  setTimeout(() => { janela.print(); }, 500);
+}
+
+function epImprimir() {
+  document.getElementById('modal-salvar-parecer').style.display = 'none';
+  const janela = _epMontarJanelaImpressao(_epNomeArquivoDespacho());
   setTimeout(() => { janela.print(); janela.close(); }, 500);
 }
 </script>
