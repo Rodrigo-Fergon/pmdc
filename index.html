@@ -6864,6 +6864,28 @@ function _cqHistoricoRestaurar() {
   if (!texto) return;
   _cqHistorico.ignorando = true;
   texto.innerHTML = _cqHistorico.pilha[_cqHistorico.indice];
+  // O HTML salvo no histórico já vinha com os atributos data-ativada /
+  // data-drag-ativado (eles são gravados no DOM real assim que a tabela/
+  // forma é criada) — mas os NÓS recriados aqui pelo innerHTML são novos
+  // e não têm nenhum ouvinte de evento ligado a eles. Sem remover essas
+  // marcas antes de reativar, cqAtivarTabelasNovas()/cqAtivarDragFormas()
+  // pensam (erradamente) que já estão prontas e pulam a religação — daí a
+  // tabela "sumia" (ficava inerte: sem clique, sem arraste, sem fórmula).
+  texto.querySelectorAll('.cq-tabela').forEach(t => t.removeAttribute('data-ativada'));
+  texto.querySelectorAll('.cq-shape-wrap').forEach(el => el.removeAttribute('data-drag-ativado'));
+  // Também limpa qualquer classe/estado transitório que possa ter sido
+  // fotografado no meio de um arraste ou de uma seleção (ex.: opacidade
+  // de "arrastando", contorno de "selecionada") para não restaurar a nota
+  // com essa aparência residual.
+  texto.querySelectorAll('.cq-arrastando').forEach(el => el.classList.remove('cq-arrastando'));
+  texto.querySelectorAll('.cq-forma-selecionada').forEach(el => el.classList.remove('cq-forma-selecionada'));
+  texto.querySelectorAll('.cq-forma-preview-laco').forEach(el => el.classList.remove('cq-forma-preview-laco'));
+  texto.querySelectorAll('.cq-tabela-cel-sel').forEach(el => el.classList.remove('cq-tabela-cel-sel'));
+  texto.classList.remove('cq-drop-ativo');
+  _cqFormasSelecionadas = [];
+  _cqTabelaLinhasSelecionadas = [];
+  _cqTabelaCelulasSelecionadas = [];
+  cqAtualizarAvisoFormaPainel();
   // Depois de trocar o HTML pelo de trás/frente do histórico, religa o
   // arraste de formas e as tabelas (os elementos foram recriados do zero).
   cqAtivarDragFormas();
@@ -6877,6 +6899,21 @@ function _cqHistoricoRestaurar() {
 // clicando/arrastando sobre as formas.
 const CQ_COMANDOS_FORMA_TOGGLE = { bold: 'negrito', italic: 'italico', underline: 'sublinhado', strikeThrough: 'tachado' };
 
+// Retorna as células (td/th) atualmente selecionadas na tabela — seja por
+// arraste sobre as células, seja pela alcinha ☰ de linha inteira. Usado
+// para os comandos da barra de edição/tabela valerem para todas de uma vez.
+function cqObterCelulasSelecionadas() {
+  if (_cqTabelaCelulasSelecionadas.length) return _cqTabelaCelulasSelecionadas.slice();
+  if (_cqTabelaLinhasSelecionadas.length) {
+    const cels = [];
+    _cqTabelaLinhasSelecionadas.forEach(tr => Array.from(tr.cells).forEach(c => {
+      if (!c.classList.contains('cq-tabela-linha-alca')) cels.push(c);
+    }));
+    return cels;
+  }
+  return [];
+}
+
 function cqCmd(comando, valor) {
   if (comando === 'undo') { cqHistoricoDesfazer(); return; }
   if (comando === 'redo') { cqHistoricoRefazer(); return; }
@@ -6889,6 +6926,23 @@ function cqCmd(comando, valor) {
       const mapa = { '1':'0.75rem', '3':'1rem', '5':'1.3rem', '7':'1.7rem' };
       if (cqAplicarPropriedadeTextoFormasSelecionadas('fontSize', mapa[valor] || '1rem')) return;
     }
+  }
+
+  // Várias células da tabela selecionadas (laço/arraste ou linha ☰): o
+  // comando (negrito, itálico, fonte, cor de texto etc.) passa a valer
+  // para o conteúdo de cada célula selecionada, uma de cada vez.
+  const celulasSel = cqObterCelulasSelecionadas();
+  if (celulasSel.length) {
+    const sel = window.getSelection();
+    celulasSel.forEach(td => {
+      const r = document.createRange();
+      r.selectNodeContents(td);
+      sel.removeAllRanges();
+      sel.addRange(r);
+      try { document.execCommand(comando, false, valor || null); } catch (e) {}
+    });
+    sel.removeAllRanges();
+    return;
   }
 
   const texto = document.getElementById('cq-texto');
@@ -7126,6 +7180,14 @@ function cqDefinirCamadaForma(frente) {
 
 function cqAplicarCor(comando, cor, chip) {
   let aplicadoEmObjeto = false;
+  const celulasSel = cqObterCelulasSelecionadas();
+  if (celulasSel.length && (comando === 'foreColor' || comando === 'hiliteColor')) {
+    celulasSel.forEach(td => {
+      if (comando === 'foreColor') td.style.color = cor;
+      else td.style.background = cor;
+    });
+    aplicadoEmObjeto = true;
+  }
   if (_cqFormasSelecionadas.length && (comando === 'foreColor' || comando === 'hiliteColor')) {
     _cqFormasSelecionadas.forEach(el => {
       if (!el.classList.contains('cq-tabela-wrap')) return;
@@ -7592,11 +7654,18 @@ function cqTabelaMouseDownCelula(e) {
   const td = e.target.closest('td, th');
   if (!td || td.classList.contains('cq-tabela-linha-alca') || td.classList.contains('cq-tabela-linha-alca-cab')) return;
   if (!td.closest('tbody') && !td.closest('thead')) return;
-  if (!(e.ctrlKey || e.metaKey)) return;
-  e.preventDefault();
+  // Clique simples (sem Ctrl) e sem arrastar continua editando a célula
+  // normalmente. Só passamos a marcar seleção de intervalo se o mouse se
+  // mover para outra célula antes de soltar (isso é decidido dentro de
+  // cqTabelaMouseMoveCelula) — ou de imediato se Ctrl/Cmd estiver
+  // pressionado (comportamento antigo, mantido para quem já usa assim).
   _cqTabelaLinhasSelecionadas = [];
-  _cqTabelaCelulaDragInfo = { tabela: td.closest('table'), origem: td };
-  cqTabelaAplicarIntervaloCelulas(td, td);
+  _cqTabelaCelulaDragInfo = { tabela: td.closest('table'), origem: td, moveu: false };
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault();
+    _cqTabelaCelulaDragInfo.moveu = true;
+    cqTabelaAplicarIntervaloCelulas(td, td);
+  }
   document.addEventListener('mousemove', cqTabelaMouseMoveCelula);
   document.addEventListener('mouseup', cqTabelaMouseUpCelula);
 }
@@ -7606,6 +7675,18 @@ function cqTabelaMouseMoveCelula(e) {
   const td = alvo && alvo.closest && alvo.closest('td, th');
   if (!td || td.closest('table') !== _cqTabelaCelulaDragInfo.tabela ||
       td.classList.contains('cq-tabela-linha-alca') || td.classList.contains('cq-tabela-linha-alca-cab')) return;
+  if (!_cqTabelaCelulaDragInfo.moveu) {
+    // Só passa a valer como seleção de intervalo quando o arraste sai da
+    // célula de origem — clique único sem mover continua sendo edição normal.
+    if (td === _cqTabelaCelulaDragInfo.origem) return;
+    _cqTabelaCelulaDragInfo.moveu = true;
+    // Tira o foco de edição da célula de origem para o arraste virar seleção visual.
+    if (document.activeElement && _cqTabelaCelulaDragInfo.origem.contains(document.activeElement)) {
+      document.activeElement.blur();
+    }
+    const sel = window.getSelection();
+    if (sel) sel.removeAllRanges();
+  }
   cqTabelaAplicarIntervaloCelulas(_cqTabelaCelulaDragInfo.origem, td);
 }
 function cqTabelaMouseUpCelula() {
@@ -7956,20 +8037,31 @@ function cqFormaMouseMove(e) {
     _cqDragInfo.moveu = true;
     const grupo = (_cqFormasSelecionadas.length > 1 && _cqFormasSelecionadas.includes(_cqDragInfo.el))
       ? _cqFormasSelecionadas : [_cqDragInfo.el];
-    _cqDragInfo.posIniciais = grupo.map(f => ({
-      el: f, flutuante: f.style.position === 'absolute',
-      left: parseFloat(f.style.left) || 0, top: parseFloat(f.style.top) || 0
-    }));
+    _cqDragInfo.posIniciais = grupo.map(f => {
+      const jaFlutuante = f.style.position === 'absolute';
+      let left = parseFloat(f.style.left) || 0, top = parseFloat(f.style.top) || 0;
+      if (!jaFlutuante) {
+        // Flutua temporariamente durante o arraste para a forma/tabela
+        // acompanhar o cursor visualmente (senão ela ficava parada até
+        // soltar o mouse) — volta ao fluxo normal do texto no soltar.
+        left = f.offsetLeft; top = f.offsetTop;
+        f.dataset.cqFlutuandoTemp = '1';
+        f.style.position = 'absolute';
+        f.style.left = left + 'px';
+        f.style.top = top + 'px';
+        f.style.zIndex = f.style.zIndex || '50';
+      }
+      return { el: f, flutuante: true, left, top };
+    });
     grupo.forEach(f => f.classList.add('cq-arrastando'));
     document.getElementById('cq-texto').classList.add('cq-drop-ativo');
   }
-  // Formas "flutuantes" (fora do fluxo do texto) se movem direto pelo
-  // left/top, na proporção do zoom da folha — arrastar no fluxo normal
-  // continua usando a inserção por posição do cursor, feita no mouseup.
+  // Todas as formas em arraste (já flutuantes ou flutuando temporariamente
+  // por causa do arraste atual) se movem direto pelo left/top, na
+  // proporção do zoom da folha.
   if (_cqDragInfo.moveu && _cqDragInfo.posIniciais) {
     const escala = (typeof _cqZoomFolhaAtual === 'number' ? _cqZoomFolhaAtual : 100) / 100;
     _cqDragInfo.posIniciais.forEach(info => {
-      if (!info.flutuante) return;
       info.el.style.left = (info.left + dx / escala) + 'px';
       info.el.style.top = (info.top + dy / escala) + 'px';
     });
@@ -7987,8 +8079,23 @@ function cqFormaMouseUp(e) {
   grupoArrastado.forEach(f => f.classList.remove('cq-arrastando'));
   document.getElementById('cq-texto').classList.remove('cq-drop-ativo');
 
-  // Forma flutuante: a posição já foi atualizada ao vivo pelo left/top
-  // durante o arraste (cqFormaMouseMove) — não há nada mais a fazer aqui.
+  // Desfaz o "flutuar temporário" usado só pra acompanhar o cursor durante
+  // o arraste — essas formas voltam a ser candidatas à reinserção no fluxo
+  // do texto, no ponto exato onde o mouse foi solto (abaixo). As que já
+  // eram flutuantes antes do arraste (dataset.cqFlutuandoTemp ausente)
+  // permanecem flutuantes, com a posição já atualizada ao vivo.
+  grupoArrastado.forEach(f => {
+    if (f.dataset.cqFlutuandoTemp) {
+      delete f.dataset.cqFlutuandoTemp;
+      f.style.position = '';
+      f.style.left = '';
+      f.style.top = '';
+      f.style.zIndex = '';
+    }
+  });
+
+  // Forma flutuante "de verdade" (já era antes do arraste começar): a
+  // posição já foi atualizada ao vivo pelo left/top — não há nada mais a fazer.
   if (el.style.position === 'absolute') { _cqDragInfo = null; return; }
 
   if (moveu) {
@@ -8001,6 +8108,18 @@ function cqFormaMouseUp(e) {
       if (pos) { range = document.createRange(); range.setStart(pos.offsetNode, pos.offset); }
     }
     const texto = document.getElementById('cq-texto');
+    // Se o ponto onde soltou caiu dentro de outra forma/tabela (ou fora da
+    // área de texto), usa a posição logo depois dela como destino — em vez
+    // de simplesmente desistir e deixar a forma "perdida" onde estava.
+    if (range) {
+      const alvoForma = range.startContainer && range.startContainer.nodeType === 1
+        ? range.startContainer.closest && range.startContainer.closest('.cq-shape-wrap')
+        : (range.startContainer && range.startContainer.parentElement && range.startContainer.parentElement.closest('.cq-shape-wrap'));
+      if (alvoForma && !grupoArrastado.includes(alvoForma)) {
+        range = document.createRange();
+        range.setStartAfter(alvoForma);
+      }
+    }
     if (range && texto.contains(range.startContainer)) {
       range.collapse(true);
 
@@ -8024,6 +8143,8 @@ function cqFormaMouseUp(e) {
         range.insertNode(el);
         _cqSavedRange = range.cloneRange();
       }
+      cqAtivarDragFormas();
+      cqAtivarTabelasNovas();
     }
   } else {
     // Foi só um clique (sem arrastar) — seleciona a forma como objeto.
@@ -8233,6 +8354,19 @@ function cqDuplicarFormasSelecionadas() {
 document.addEventListener('keydown', (e) => {
   const ctrlOuCmd = e.ctrlKey || e.metaKey;
 
+  // Ctrl+P dentro do editor de notas: usa a MESMA rotina do botão
+  // "Imprimir" (que reconstrói a nota numa janela própria, fiel à tela),
+  // em vez de deixar o navegador imprimir a tela inteira do sistema
+  // (com barra de ferramentas, painéis etc.).
+  if (ctrlOuCmd && e.key.toLowerCase() === 'p') {
+    const editor = document.getElementById('cq-editor-area');
+    if (editor && editor.style.display !== 'none') {
+      e.preventDefault();
+      cqImprimirNota();
+      return;
+    }
+  }
+
   // Colar: funciona sempre que há algo copiado e o foco está na nota
   if (ctrlOuCmd && e.key.toLowerCase() === 'v' && _cqFormaClipboard.length) {
     const texto = document.getElementById('cq-texto');
@@ -8391,7 +8525,8 @@ async function cqExcluirNota() {
 
 function cqImprimirNota() {
   const titulo   = document.getElementById('cq-titulo').value.trim() || 'Nota';
-  const conteudo = document.getElementById('cq-texto').innerHTML;
+  const texto    = document.getElementById('cq-texto');
+  const conteudo = texto.innerHTML;
   const w = window.open('', '_blank', 'width=800,height=900');
   if (!w) { alert('Seu navegador bloqueou a janela de impressão. Permita pop-ups para este site e tente novamente.'); return; }
   // Reaproveita TODO o CSS já usado na tela (as mesmas regras de tabela,
@@ -8399,12 +8534,20 @@ function cqImprimirNota() {
   // garantidamente igual à tela, sem duplicar regras à mão (o que corria
   // o risco de uma versão ficar desatualizada em relação à outra).
   const estilosDaTela = Array.from(document.querySelectorAll('style')).map(s => s.innerHTML).join('\n');
+  // Formas/tabelas "flutuantes" (position:absolute) têm o left/top
+  // calculados em relação ao container posicionado mais próximo — na tela
+  // isso é #cq-pagina-escala. Antes, a impressão jogava o conteúdo dentro
+  // de uma <div> genérica sem esse mesmo contexto, então tudo que estava
+  // flutuante saía do lugar (às vezes some da página visível). Recriando
+  // o mesmo id="cq-texto" dentro de um wrapper position:relative do mesmo
+  // tamanho da folha, o navegador calcula exatamente a mesma posição de tela.
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${escHtml(titulo)}</title>
     <style>${estilosDaTela}</style>
     <style>
       @page{size:A4;margin:1.8cm;}
       body{font-family:Arial,Helvetica,sans-serif;color:#000;line-height:1.6;background:#fff;}
       h1{font-size:20pt;margin-bottom:1rem;}
+      .cq-print-folha{position:relative;width:${texto.offsetWidth}px;}
       /* Comandos da tabela (➕linha, cores etc.), a alça de mover/arrastar
          e a coluna/linha de numeração (☰) são controles da TELA — nunca
          devem aparecer na impressão, só o conteúdo real da tabela. */
@@ -8415,11 +8558,19 @@ function cqImprimirNota() {
     </style>
     </head><body>
       <h1>${escHtml(titulo)}</h1>
-      <div>${conteudo}</div>
+      <div class="cq-print-folha"><div id="cq-texto">${conteudo}</div></div>
     </body></html>`);
   w.document.close();
   w.focus();
-  setTimeout(() => { w.print(); }, 400);
+  // Espera as fontes/imagens carregarem antes de mandar imprimir — senão
+  // a impressão pode sair com a fonte errada (ainda no fallback do
+  // sistema) mesmo que a tela mostre a fonte certa.
+  const disparaImpressao = () => setTimeout(() => { w.print(); }, 150);
+  if (w.document.fonts && w.document.fonts.ready) {
+    w.document.fonts.ready.then(disparaImpressao).catch(disparaImpressao);
+  } else {
+    setTimeout(disparaImpressao, 400);
+  }
 }
 
 /* ── Tela cheia, zoom e ocultar/mostrar barra de ferramentas ── */
