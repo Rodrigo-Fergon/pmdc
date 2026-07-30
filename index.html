@@ -403,6 +403,12 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
   text-align:center;padding:4px;font-family:'Patrick Hand',cursive;font-size:1rem;color:#2c2c2c;
   outline:none;overflow:hidden;cursor:text;}
 .cq-shape-text:empty:before{content:'texto…';color:#b3aca0;}
+.cq-forma-rotate-alca{position:absolute;top:50%;width:12px;height:12px;margin-top:-6px;border-radius:50%;
+  background:var(--accent);border:2px solid #0c1119;cursor:grab;display:none;z-index:6;}
+.cq-shape-wrap:hover .cq-forma-rotate-alca, .cq-shape-wrap.cq-forma-selecionada .cq-forma-rotate-alca{display:block;}
+.cq-forma-rotate-alca-e{left:-6px;}
+.cq-forma-rotate-alca-d{right:-6px;}
+.cq-shape-wrap.cq-girando .cq-forma-rotate-alca{cursor:grabbing;}
 #cq-texto.cq-drop-ativo{outline:2px dashed var(--accent);outline-offset:-2px;}
 
 /* ── Tabela inserida dentro da nota (estilo Excel) ── */
@@ -7319,9 +7325,18 @@ function cqInserirForma() {
   }
 
   const textoHtml = comTexto ? `<div class="cq-shape-text" contenteditable="false" ondblclick="cqEntrarEdicaoTextoForma(this)" onblur="this.setAttribute('contenteditable','false')" style="color:${corTexto};"></div>` : '';
+  // Linha/seta ganham uma alcinha em cada ponta para girar o ângulo
+  // (arrastando a ponta em círculo em torno do centro da forma) — assim
+  // dá pra deixar a linha na diagonal, na vertical etc., sem precisar de
+  // um controle de rotação separado.
+  const alcasRotacaoHtml = (tipo === 'linha' || tipo === 'seta')
+    ? `<div class="cq-forma-rotate-alca cq-forma-rotate-alca-e" title="Arraste para girar" onmousedown="cqFormaIniciarRotacao(event, this)"></div>
+       <div class="cq-forma-rotate-alca cq-forma-rotate-alca-d" title="Arraste para girar" onmousedown="cqFormaIniciarRotacao(event, this)"></div>`
+    : '';
   const html = `<span class="cq-shape-wrap" contenteditable="false" style="width:${largura};height:${altura};">
       <svg viewBox="0 0 100 100" preserveAspectRatio="none">${svgInterno}</svg>
       ${textoHtml}
+      ${alcasRotacaoHtml}
     </span>&nbsp;`;
 
   cqInserirHtmlNaPosicao(html);
@@ -8014,6 +8029,38 @@ function cqAtivarDragFormas() {
   });
 }
 
+// Gira a linha/seta arrastando uma das pontas em torno do centro da forma
+// — solta no ângulo que quiser (Shift = trava em passos de 15°, fácil pra
+// pegar exatamente vertical/diagonal/horizontal).
+function cqFormaIniciarRotacao(e, alca) {
+  e.preventDefault();
+  e.stopPropagation();
+  const wrap = alca.closest('.cq-shape-wrap');
+  if (!wrap) return;
+  wrap.classList.add('cq-girando');
+  const rotAtual = parseFloat(wrap.dataset.rotacao || '0');
+  const rect = wrap.getBoundingClientRect();
+  const centroX = rect.left + rect.width / 2;
+  const centroY = rect.top + rect.height / 2;
+  const anguloInicialMouse = Math.atan2(e.clientY - centroY, e.clientX - centroX) * 180 / Math.PI;
+
+  function mover(ev) {
+    const anguloMouse = Math.atan2(ev.clientY - centroY, ev.clientX - centroX) * 180 / Math.PI;
+    let novoAngulo = rotAtual + (anguloMouse - anguloInicialMouse);
+    if (ev.shiftKey) novoAngulo = Math.round(novoAngulo / 15) * 15;
+    wrap.dataset.rotacao = novoAngulo;
+    wrap.style.transform = `rotate(${novoAngulo}deg)`;
+  }
+  function soltar() {
+    document.removeEventListener('mousemove', mover);
+    document.removeEventListener('mouseup', soltar);
+    wrap.classList.remove('cq-girando');
+    _cqHistoricoAgendar(); // guarda o novo ângulo no histórico de desfazer/refazer
+  }
+  document.addEventListener('mousemove', mover);
+  document.addEventListener('mouseup', soltar);
+}
+
 // Duplo clique no campo de texto de uma forma: só aí ele vira editável de
 // fato e recebe o cursor. Um clique simples continua sendo "pegar a forma
 // para arrastar/selecionar" — antes, como o texto cobre quase toda a área
@@ -8032,6 +8079,7 @@ function cqEntrarEdicaoTextoForma(el) {
 
 function cqFormaMouseDown(e) {
   if (e.button !== 0) return; // só botão esquerdo
+  if (e.target.closest('.cq-forma-rotate-alca')) return; // a alça de girar cuida do próprio evento
   // Só deixa o clique virar edição de texto normal se o campo já estiver
   // em modo de edição (ativado por duplo clique antes). Caso contrário,
   // clicar em cima do texto (vazio ou não) continua servindo para
@@ -8577,7 +8625,7 @@ function cqImprimirNota() {
       /* Comandos da tabela (➕linha, cores etc.), a alça de mover/arrastar
          e a coluna/linha de numeração (☰) são controles da TELA — nunca
          devem aparecer na impressão, só o conteúdo real da tabela. */
-      .cq-tabela-controles, .cq-tabela-resize-alca, .cq-tabela-alca{display:none!important;}
+      .cq-tabela-controles, .cq-tabela-resize-alca, .cq-tabela-alca, .cq-forma-rotate-alca{display:none!important;}
       .cq-tabela-wrap{border:none!important;margin:6px 0!important;}
       table.cq-tabela td.cq-tabela-linha-alca, table.cq-tabela th.cq-tabela-linha-alca-cab{display:none!important;}
       .cq-shape-wrap.cq-forma-selecionada, .cq-tabela-wrap.cq-forma-selecionada{outline:none!important;box-shadow:none!important;}
