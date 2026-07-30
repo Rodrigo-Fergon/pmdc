@@ -8417,6 +8417,13 @@ function cqDuplicarFormasSelecionadas() {
     const nova = cqClonarFormaDeHtml(el.outerHTML);
     if (!nova) return;
     el.insertAdjacentElement('afterend', nova);
+    // Se a forma é flutuante, a cópia nasce em cima da original — desloca
+    // um pouco (20px) pra ficar visível e já dar pra pegar sem precisar
+    // procurar embaixo da original primeiro.
+    if (nova.style.position === 'absolute') {
+      nova.style.left = (parseFloat(nova.style.left) || 0) + 20 + 'px';
+      nova.style.top  = (parseFloat(nova.style.top)  || 0) + 20 + 'px';
+    }
     duplicatas.push(nova);
   });
   cqAtivarDragFormas();
