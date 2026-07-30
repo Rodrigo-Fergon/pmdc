@@ -1374,6 +1374,7 @@ table.cq-tabela td.cq-tabela-cel-sel, table.cq-tabela th.cq-tabela-cel-sel{box-s
           <div class="field field-opt"><label>Folha (Fls)</label><input type="text" id="tri-folha" placeholder="Ex: 08"></div>
           <div class="field"><label>Destinatário</label><input type="text" id="tri-destinatario" value="Sr. Chefe"></div>
           <div class="field"><label>Data do Documento</label><input type="text" id="tri-data-doc" placeholder="DD/MM/AAAA"></div>
+          <div class="field"><label>Setor (encaminhamento p/ pagamento)</label><input type="text" id="tri-setor-encaminhamento" value="DAA" placeholder="Ex: DAA"></div>
           <div class="field full"><label>Nome do(a) Servidor(a)</label><input type="text" id="tri-nome-servidor" placeholder="Nome completo em maiúsculas" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
           <div class="field full" style="display:grid;grid-template-columns:1fr 2fr;gap:.75rem 1.5rem;">
             <div class="field" style="margin:0;"><label>Matrícula</label><input type="text" id="tri-matricula" placeholder="Ex: 10468-6"></div>
@@ -10360,6 +10361,7 @@ function trienioGerarDocumento() {
   const proc    = document.getElementById('tri-processo').value.trim();
   const fls     = document.getElementById('tri-folha').value.trim();
   const dest    = document.getElementById('tri-destinatario').value.trim() || 'Sr. Chefe';
+  const setorEncam = document.getElementById('tri-setor-encaminhamento').value.trim() || 'DAA';
   const dataDoc = document.getElementById('tri-data-doc').value.trim();
   const observacao = document.getElementById('tri-observacao').value.trim();
 
@@ -10492,8 +10494,7 @@ function trienioGerarDocumento() {
       </div>
     </div>
     <div style="margin-top:3rem;font-size:10pt;padding-top:.8rem;">
-      <div style="text-align:center;">Cálculos conferidos em, ____________.</div>
-      <div style="text-align:center;margin-top:.4rem;">Ao Diretor,</div>
+      <div style="text-align:center;">À ${escHtml(setorEncam)}, solicitando autorização para pagamento.</div>
       <div style="text-align:center;margin-top:2.5rem;">Em, _____/_____/_____.</div>
       <div style="text-align:center;margin-top:2.5rem;">______________________________________</div>
     </div>
