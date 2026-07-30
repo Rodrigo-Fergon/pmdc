@@ -7318,7 +7318,7 @@ function cqInserirForma() {
     }
   }
 
-  const textoHtml = comTexto ? `<div class="cq-shape-text" contenteditable="true" style="color:${corTexto};"></div>` : '';
+  const textoHtml = comTexto ? `<div class="cq-shape-text" contenteditable="false" ondblclick="cqEntrarEdicaoTextoForma(this)" onblur="this.setAttribute('contenteditable','false')" style="color:${corTexto};"></div>` : '';
   const html = `<span class="cq-shape-wrap" contenteditable="false" style="width:${largura};height:${altura};">
       <svg viewBox="0 0 100 100" preserveAspectRatio="none">${svgInterno}</svg>
       ${textoHtml}
@@ -7327,6 +7327,10 @@ function cqInserirForma() {
   cqInserirHtmlNaPosicao(html);
   document.querySelectorAll('.cq-color-panel').forEach(p => p.classList.remove('aberto'));
   cqAtivarDragFormas();
+  // Não deixa a opção "com texto" marcada para a próxima forma — sem
+  // isso, a próxima forma inserida ganhava um campo de texto por engano,
+  // mesmo sem o usuário ter marcado a caixinha de novo.
+  document.getElementById('cq-forma-com-texto').checked = false;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -8010,9 +8014,31 @@ function cqAtivarDragFormas() {
   });
 }
 
+// Duplo clique no campo de texto de uma forma: só aí ele vira editável de
+// fato e recebe o cursor. Um clique simples continua sendo "pegar a forma
+// para arrastar/selecionar" — antes, como o texto cobre quase toda a área
+// da forma, um clique único já entrava em modo de edição e a forma nunca
+// chegava a ser arrastada.
+function cqEntrarEdicaoTextoForma(el) {
+  el.setAttribute('contenteditable', 'true');
+  el.focus();
+  const r = document.createRange();
+  r.selectNodeContents(el);
+  r.collapse(false);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(r);
+}
+
 function cqFormaMouseDown(e) {
   if (e.button !== 0) return; // só botão esquerdo
-  if (e.target.closest('.cq-shape-text')) return; // deixa editar o texto interno normalmente
+  // Só deixa o clique virar edição de texto normal se o campo já estiver
+  // em modo de edição (ativado por duplo clique antes). Caso contrário,
+  // clicar em cima do texto (vazio ou não) continua servindo para
+  // selecionar/arrastar a forma inteira.
+  const campoTexto = e.target.closest('.cq-shape-text');
+  if (campoTexto && campoTexto.getAttribute('contenteditable') === 'true') return;
+  if (campoTexto) e.preventDefault(); // evita o navegador focar o campo antes da hora
   // Numa tabela, só a alça "⠿ TABELA" seleciona/arrasta — células, botões
   // de +/- linha/coluna e o filtro continuam funcionando normalmente.
   if (e.target.closest('.cq-tabela-wrap') && !e.target.closest('.cq-tabela-alca')) return;
