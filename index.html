@@ -85,6 +85,7 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;
 .upload-zone p{color:var(--text2);font-size:.88rem;}
 .upload-zone strong{color:var(--accent);}
 #file-input{display:none;}
+#file-input-dec13{display:none;}
 .file-list{list-style:none;margin-top:1rem;display:flex;flex-direction:column;gap:.4rem;}
 .file-item{display:flex;align-items:center;gap:.75rem;padding:.5rem .9rem;background:var(--bg2);border:1px solid var(--border);border-radius:6px;font-size:.83rem;}
 .file-item .fname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2);}
@@ -108,7 +109,23 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;
 .dados-grid .full{grid-column:1/-1;}
 .field label{display:block;font-size:.72rem;color:var(--text3);font-family:'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
 .field-opt label::after{content:' (opcional)';font-size:.63rem;opacity:.6;}
-.field input[type=text],.field input[type=date]{width:100%;padding:.5rem .8rem;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.88rem;transition:border-color .2s;}
+.field input[type=text],.field input[type=date],.field input[type=number]{width:100%;padding:.5rem .8rem;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.88rem;transition:border-color .2s;}
+.field select{width:100%;padding:.5rem .8rem;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.88rem;transition:border-color .2s;}
+.field select option{background:var(--bg2);color:var(--text);}
+/* O preenchimento automático do navegador (autofill) pinta o campo de
+   branco por cima do CSS do sistema — esse truque do box-shadow "engana"
+   o navegador fazendo ele achar que já pintou o fundo, e usamos a cor
+   escura do próprio sistema por dentro. A transição gigante evita o
+   piscar amarelo/branco padrão do Chrome no instante do autofill. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active{
+  -webkit-box-shadow:0 0 0 30px var(--bg2) inset !important;
+  -webkit-text-fill-color:var(--text) !important;
+  caret-color:var(--text) !important;
+  transition:background-color 9999s ease-in-out 0s;
+}
 .field textarea{width:100%;padding:.5rem .8rem;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.88rem;transition:border-color .2s;resize:vertical;min-height:38px;}
 .field textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,210,255,0.12);}
 .field textarea::placeholder{color:var(--text3);}
