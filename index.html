@@ -3425,6 +3425,23 @@ function _resolverMes(x, colMap) {
   return bestDist <= 150 ? bestMi : null;
 }
 
+/* Decide se, no fallback ordinal (menos valores que colunas), os valores
+   encontrados devem ser associados às PRIMEIRAS colunas do bloco (caso
+   típico: desligamento no meio do bloco — faltam os meses finais) ou às
+   ÚLTIMAS colunas (caso típico: admissão no meio do bloco — faltam os
+   meses iniciais). Decide comparando a posição X média dos valores
+   encontrados com o centro do grupo de colunas à esquerda vs. à direita.
+   Retorna o offset (0 = alinhar à esquerda; nCols-n = alinhar à direita). */
+function _offsetFallbackOrdinal(todosVals, colsOrdenadas, xsOrdenados) {
+  const n = todosVals.length;
+  const nCols = colsOrdenadas.length;
+  if (n === 0 || n >= nCols) return 0;
+  const avgFoundX = todosVals.reduce((s, it) => s + it.x, 0) / n;
+  const avgLeftX  = xsOrdenados.slice(0, n).reduce((s, x) => s + x, 0) / n;
+  const avgRightX = xsOrdenados.slice(nCols - n).reduce((s, x) => s + x, 0) / n;
+  return Math.abs(avgFoundX - avgLeftX) <= Math.abs(avgFoundX - avgRightX) ? 0 : (nCols - n);
+}
+
 /* Parseia um PDF completo (array de páginas retornado por extractText) */
 function parseFichaPages(pages) {
   const r = { dados:{}, contrib:{}, debug:[] };
@@ -3511,39 +3528,37 @@ function parseFichaPages(pages) {
         /* ── Estratégia 2: fallback ordinal ──────────────────────────────
            O pdf.js pode retornar coordenadas X ligeiramente diferentes das
            do cabeçalho, fazendo com que a Estratégia 1 falhe para alguns
-           valores — especialmente o da última coluna (mais deslocado).
-           Regra: sempre usar ordinal quando o nº de valores mapeados
-           difere do nº de valores encontrados, OU quando há menos valores
-           que colunas (colunas vazias no início/meio do bloco).
-           Ordinal: associa os N valores às últimas N colunas (da esquerda
-           para a direita), preservando a correspondência posicional. */
+           valores (nenhum mês resolvido, ou dois valores caindo no mesmo
+           mês). Nesses casos — e SÓ nesses — usamos o fallback ordinal.
+           Quando há menos valores que colunas mas a Estratégia 1 já
+           mapeou todos eles corretamente (sem falha nem duplicata),
+           confiamos nela: pode ser um mês real sem lançamento (ex.:
+           desligamento no meio do bloco, faltam os meses finais), não
+           necessariamente um erro de leitura.
+           Se o fallback for necessário, a direção (colunas iniciais vs.
+           finais) é decidida comparando a posição X dos valores
+           encontrados com a posição das colunas — em vez de assumir
+           sempre "últimas N colunas". */
         const nCols = Object.keys(colMap).length;
-        const colsOrdenadas = Object.entries(colMap)
-          .sort((a, b) => Number(a[0]) - Number(b[0]))
-          .map(([, mi]) => mi);
+        const colsOrdenadasEntries = Object.entries(colMap)
+          .sort((a, b) => Number(a[0]) - Number(b[0]));
+        const colsOrdenadas = colsOrdenadasEntries.map(([, mi]) => mi);
+        const xsOrdenados   = colsOrdenadasEntries.map(([x]) => Number(x));
 
         /* Verificar se a Estratégia 1 produziu duplicatas de mês
            (dois valores mapeados para o mesmo mês) — sinal de erro de X */
         const mesesUsados1 = valoresEncontrados.map(v => v.mi);
         const temDuplicata = mesesUsados1.length !== new Set(mesesUsados1).size;
 
-        /* Exceção: em 2017 o código 164 só aparece em Set/Out (Nov/Dez passam
-           a usar os códigos 225/226) — ou seja, os valores ocupam o INÍCIO
-           do bloco, não o fim. Nesse ano não aplicamos o fallback ordinal
-           "últimas N colunas" apenas por haver menos valores que colunas;
-           confiamos no mapeamento por posição X (Estratégia 1), desde que
-           ele tenha sido consistente (sem divergência de contagem/duplicata). */
         if (todosVals.length > 0 &&
-            (valoresEncontrados.length !== todosVals.length ||
-             temDuplicata ||
-             (todosVals.length < nCols && ano !== 2017))) {
+            (valoresEncontrados.length !== todosVals.length || temDuplicata)) {
           valoresEncontrados.length = 0;
-          const offset = nCols - todosVals.length;
+          const offset = _offsetFallbackOrdinal(todosVals, colsOrdenadas, xsOrdenados);
           todosVals.forEach((it, idx) => {
             const mi = colsOrdenadas[Math.max(0, offset) + idx];
             if (mi !== undefined) valoresEncontrados.push({ mi, val: parseBR(it.str) });
           });
-          log(`    Linha 164 fallback-ordinal: ${todosVals.length} valor(es) → offset ${nCols - todosVals.length}`);
+          log(`    Linha 164 fallback-ordinal: ${todosVals.length} valor(es) → offset ${offset}`);
         }
 
         /* Gravar no contrib */
@@ -3579,25 +3594,23 @@ function parseFichaPages(pages) {
           }
         }
 
-        const nCols165 = Object.keys(colMap).length;
-        const colsOrdenadas165 = Object.entries(colMap)
-          .sort((a, b) => Number(a[0]) - Number(b[0]))
-          .map(([, mi]) => mi);
+        const colsOrdenadas165Entries = Object.entries(colMap)
+          .sort((a, b) => Number(a[0]) - Number(b[0]));
+        const colsOrdenadas165 = colsOrdenadas165Entries.map(([, mi]) => mi);
+        const xsOrdenados165   = colsOrdenadas165Entries.map(([x]) => Number(x));
 
         const mesesUsados165 = valoresEncontrados165.map(v => v.mi);
         const temDuplicata165 = mesesUsados165.length !== new Set(mesesUsados165).size;
 
         if (todosVals165.length > 0 &&
-            (valoresEncontrados165.length !== todosVals165.length ||
-             todosVals165.length < nCols165 ||
-             temDuplicata165)) {
+            (valoresEncontrados165.length !== todosVals165.length || temDuplicata165)) {
           valoresEncontrados165.length = 0;
-          const offset165 = nCols165 - todosVals165.length;
+          const offset165 = _offsetFallbackOrdinal(todosVals165, colsOrdenadas165, xsOrdenados165);
           todosVals165.forEach((it, idx) => {
             const mi = colsOrdenadas165[Math.max(0, offset165) + idx];
             if (mi !== undefined) valoresEncontrados165.push({ mi, val: parseBR(it.str) });
           });
-          log(`    Linha 165 fallback-ordinal: ${todosVals165.length} valor(es) → offset ${nCols165 - todosVals165.length}`);
+          log(`    Linha 165 fallback-ordinal: ${todosVals165.length} valor(es) → offset ${offset165}`);
         }
 
         for (const { mi, val } of valoresEncontrados165) {
@@ -4260,8 +4273,15 @@ function aplicarProporcionalFim() {
   const mesFim   = dataFim.getMonth();   /* 0=jan … 11=dez */
   const diaFim   = dataFim.getDate();
 
-  /* Verificar se o dia final é o último dia do mês (base comercial = 30) */
-  const mesCompleto = diaFim >= 30;
+  /* Verificar se o dia final é o último dia do mês (base comercial = 30).
+     Exceção: fevereiro nunca chega a 30 dias no calendário civil (máx. 28
+     ou 29). Para fins de certidão, fevereiro cheio (dia = último dia real
+     do mês, 28 ou 29 conforme ano bissexto) é considerado mês completo,
+     sem proporcionalização — regra equivalente a "fevereiro tem 30 dias". */
+  const ultimoDiaFevereiro = new Date(anoFim, 2, 0).getDate(); /* 28 ou 29 */
+  const mesCompleto = mesFim === 1
+    ? diaFim >= ultimoDiaFevereiro
+    : diaFim >= 30;
 
   const ca = S.contrib[anoFim];
   if (!ca) return;
@@ -4623,7 +4643,11 @@ function renderTabelaRevisao() {
          Usa base 30 dias comerciais (regra IPMDC). */
       if (!isDec13 && ano === anoFim && mi === mesFim && S.periodoFim && !c.proporcionalFim) {
         const diaFim2 = S.periodoFim.getDate();
-        if (diaFim2 < 30) {
+        /* Fevereiro cheio (28 ou 29, conforme ano bissexto) conta como mês
+           completo — regra "fevereiro tem 30 dias" para fins de certidão. */
+        const ultimoDiaFev2 = new Date(anoFim, 2, 0).getDate();
+        const diaFimCompleto = mesFim === 1 ? diaFim2 >= ultimoDiaFev2 : diaFim2 >= 30;
+        if (!diaFimCompleto) {
           /* Buscar refDesc: contribOriginal > atual */
           const refD = S.contribOriginal?.[anoFim]?.[m]?.desc || c.desc || 0;
           if (refD > 0) {
