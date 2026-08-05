@@ -435,6 +435,7 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
 .cq-tabela-wrap.cq-arrastando{opacity:.4;}
 .cq-tabela-wrap.cq-forma-selecionada{outline:2px solid var(--accent);outline-offset:2px;box-shadow:0 0 10px rgba(0,210,255,.4);border-radius:6px;}
 .cq-tabela-wrap.cq-forma-preview-laco{outline:2px dashed var(--accent);outline-offset:2px;}
+.cq-tabela-wrap.cq-tabela-centralizada{display:block;width:fit-content;margin-left:auto;margin-right:auto;}
 .cq-tabela-alca{font-family:'Share Tech Mono',monospace;font-size:.62rem;letter-spacing:.5px;
   background:#1c2431;color:#9ab2c9;padding:.2rem .5rem;border-radius:5px 5px 0 0;cursor:grab;
   user-select:none;display:flex;align-items:center;gap:.3rem;border:1px solid rgba(0,0,0,.25);border-bottom:none;}
@@ -443,7 +444,11 @@ html.ctc-print-mode body::before,html.ctc-print-mode body::after{display:none!im
 .cq-tabela-zoom{transform-origin:top left;display:inline-block;border:1px solid rgba(0,0,0,.25);}
 table.cq-tabela{border-collapse:collapse;background:#fffdf6;font-family:Arial,Helvetica,sans-serif;font-size:.85rem;}
 table.cq-tabela th, table.cq-tabela td{border:1px solid #7d8794;padding:.3rem .5rem;min-width:70px;color:#222;vertical-align:top;}
-table.cq-tabela thead th{background:#26313f;color:#fff;font-weight:700;}
+table.cq-tabela thead th{background:#26313f;color:#fff;font-weight:700;position:relative;}
+.cq-tabela-col-resize{position:absolute;top:0;right:-3px;width:6px;height:100%;cursor:col-resize;z-index:3;}
+.cq-tabela-col-resize:hover{background:rgba(0,168,255,.4);}
+.cq-tabela-linha-resize{position:absolute;left:0;right:0;bottom:-3px;height:6px;cursor:row-resize;z-index:3;}
+.cq-tabela-linha-resize:hover{background:rgba(0,168,255,.4);}
 table.cq-tabela td[contenteditable]:focus, table.cq-tabela th [contenteditable]:focus{outline:2px solid var(--accent);outline-offset:-2px;background:#eef7ff;}
 .cq-tabela-th-cont{display:flex;align-items:center;justify-content:space-between;gap:.3rem;}
 .cq-tabela-titulo{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.85rem;color:#dbe6f0;
@@ -451,7 +456,7 @@ table.cq-tabela td[contenteditable]:focus, table.cq-tabela th [contenteditable]:
 .cq-tabela-titulo:hover, .cq-tabela-titulo:focus{border-color:rgba(255,255,255,.25);}
 .cq-tabela-titulo:empty:before{content:attr(data-placeholder);color:#6d7686;}
 table.cq-tabela td.cq-tabela-linha-alca{background:#1c2431;color:#9ab2c9;text-align:center;min-width:22px;
-  width:22px;cursor:pointer;font-size:.68rem;user-select:none;}
+  width:22px;cursor:pointer;font-size:.68rem;user-select:none;position:relative;}
 table.cq-tabela td.cq-tabela-linha-alca:hover{background:#26313f;}
 table.cq-tabela th.cq-tabela-linha-alca-cab{background:#1c2431;width:22px;}
 table.cq-tabela td.cq-tabela-cel-sel, table.cq-tabela th.cq-tabela-cel-sel{box-shadow:inset 0 0 0 2px var(--accent);}
@@ -7412,14 +7417,16 @@ function cqTabelaColIndice(letra) {
 
 function cqTabelaHtmlCabecalho(letra) {
   return `<div class="cq-tabela-th-cont"><span class="cq-tabela-th-texto" contenteditable="true">Coluna ${letra}</span>` +
-    `<button type="button" class="cq-tabela-filtro-btn" onmousedown="event.preventDefault()" onclick="cqTabelaAbrirFiltro(event,this)" title="Filtrar">▾</button></div>`;
+    `<button type="button" class="cq-tabela-filtro-btn" onmousedown="event.preventDefault()" onclick="cqTabelaAbrirFiltro(event,this)" title="Filtrar">▾</button></div>` +
+    `<div class="cq-tabela-col-resize" title="Arraste para redimensionar esta coluna" onmousedown="cqTabelaColResizeIniciar(event,this)"></div>`;
 }
 
 // A 1ª coluna de toda tabela é a "alça de linha" (☰) — clique nela para
 // selecionar a linha inteira e colorir o fundo. Ela não conta como coluna
 // de fórmula (a coluna A de verdade é a 2ª posição real do DOM).
 function cqTabelaHtmlAlcaLinha(numero) {
-  return `<td class="cq-tabela-linha-alca" contenteditable="false" onmousedown="cqTabelaCliqueAlcaLinha(event,this)" title="Clique para selecionar a linha (Shift = somar outras) e colorir o fundo">${numero}</td>`;
+  return `<td class="cq-tabela-linha-alca" contenteditable="false" onmousedown="cqTabelaCliqueAlcaLinha(event,this)" title="Clique para selecionar a linha (Shift = somar outras) e colorir o fundo">${numero}` +
+    `<div class="cq-tabela-linha-resize" title="Arraste para redimensionar esta linha" onmousedown="cqTabelaLinhaResizeIniciar(event,this)"></div></td>`;
 }
 
 function cqInserirTabela() {
@@ -7452,6 +7459,7 @@ function cqInserirTabela() {
         <button type="button" onmousedown="event.preventDefault()" onclick="cqTabelaAbrirCorFundo(this)" title="Cor de fundo: célula(s) com Ctrl+clique/arrastar, linha(s) pela alça ☰, ou a tabela toda se nada estiver selecionado">🎨 cor de fundo</button>
         <button type="button" onmousedown="event.preventDefault()" onclick="cqTabelaAbrirCorLinha(this)" title="Cor da linha (bordas): célula(s) com Ctrl+clique/arrastar, linha(s) pela alça ☰, ou a tabela toda se nada estiver selecionado">🖊️ cor da linha</button>
         <button type="button" onmousedown="event.preventDefault()" onclick="cqTabelaAbrirCorFonte(this)" title="Cor da letra: célula(s) com Ctrl+clique/arrastar, linha(s) pela alça ☰, ou a tabela toda se nada estiver selecionado">🔤 cor da letra</button>
+        <button type="button" onmousedown="event.preventDefault()" onclick="cqTabelaCentralizar(this)" title="Centralizar a tabela entre as margens laterais do papel">↔️ centralizar</button>
       </div>
       <div class="cq-tabela-resize-alca" title="Arraste para redimensionar a tabela (proporcional)" onmousedown="cqTabelaIniciarResize(event, this)"></div>
     </span>&nbsp;`;
@@ -7465,6 +7473,8 @@ function cqInserirTabela() {
 // Ativa (uma única vez por tabela) os eventos de fórmula/filtro/Enter/seleção de células.
 function cqAtivarTabelasNovas() {
   document.querySelectorAll('#cq-texto .cq-tabela').forEach(tabela => {
+    cqTabelaGarantirColgroup(tabela);
+    cqTabelaGarantirAlcasResize(tabela);
     if (tabela.dataset.ativada) return;
     tabela.dataset.ativada = '1';
     tabela.addEventListener('focusin', cqTabelaAoFocarCelula);
@@ -7654,12 +7664,15 @@ function cqTabelaRemLinha(btn) {
 }
 function cqTabelaAddColuna(btn) {
   const tabela = btn.closest('.cq-tabela-wrap').querySelector('table');
+  cqTabelaGarantirColgroup(tabela); // antes de acrescentar o <th>, para não duplicar <col>
   const headRow = tabela.tHead.rows[0];
   const letra = cqTabelaColLetra(headRow.cells.length - 1); // -1: a alça não conta
   const th = document.createElement('th');
   th.innerHTML = cqTabelaHtmlCabecalho(letra);
   headRow.appendChild(th);
   Array.from(tabela.tBodies[0].rows).forEach(tr => { const td = document.createElement('td'); td.contentEditable = 'true'; tr.appendChild(td); });
+  const colgroup = tabela.querySelector(':scope > colgroup');
+  if (colgroup) colgroup.appendChild(document.createElement('col'));
 }
 function cqTabelaRemColuna(btn) {
   const tabela = btn.closest('.cq-tabela-wrap').querySelector('table');
@@ -7668,6 +7681,8 @@ function cqTabelaRemColuna(btn) {
   const idx = headRow.cells.length - 1;
   headRow.deleteCell(idx);
   Array.from(tabela.tBodies[0].rows).forEach(tr => { if (tr.cells[idx]) tr.deleteCell(idx); });
+  const colgroup = tabela.querySelector(':scope > colgroup');
+  if (colgroup && colgroup.children[idx]) colgroup.removeChild(colgroup.children[idx]);
 }
 
 // ── Seleção de linha(s)/célula(s) para colorir o fundo (não mexe na
@@ -7921,6 +7936,123 @@ function cqTabelaIniciarResize(e, alca) {
     document.removeEventListener('mousemove', mover);
     document.removeEventListener('mouseup', soltar);
     _cqHistoricoAgendar(); // guarda o novo tamanho no histórico de desfazer/refazer
+  }
+  document.addEventListener('mousemove', mover);
+  document.addEventListener('mouseup', soltar);
+}
+
+// ── Centraliza a tabela entre as margens laterais do papel (folha) ──
+// Em fluxo normal, vira um bloco com largura ajustada ao conteúdo e
+// margem automática nos dois lados — centralizando dentro da área útil
+// de #cq-texto (a mesma coisa é feita/desfeita clicando de novo no botão).
+// Se a tabela estiver flutuante (destacada do texto), só reposiciona ela
+// uma vez no centro horizontal, já que margem automática não vale para
+// elementos com position:absolute.
+function cqTabelaCentralizar(btn) {
+  const wrap = btn.closest('.cq-tabela-wrap');
+  if (wrap.style.position === 'absolute') {
+    const texto = document.getElementById('cq-texto');
+    const cs = getComputedStyle(texto);
+    const padL = parseFloat(cs.paddingLeft) || 0;
+    const padR = parseFloat(cs.paddingRight) || 0;
+    const larguraUtil = texto.clientWidth - padL - padR;
+    wrap.style.left = (padL + Math.max(0, (larguraUtil - wrap.offsetWidth) / 2)) + 'px';
+  } else {
+    wrap.classList.toggle('cq-tabela-centralizada');
+  }
+  _cqHistoricoAgendar();
+}
+
+// ── Garante que a tabela tenha <colgroup> com um <col> por coluna
+// (alça + colunas de dados), preservando a largura visual atual de
+// cada uma, e liga table-layout:fixed. Sem isso o navegador ignora
+// larguras individuais de coluna (layout automático), então essa é a
+// base necessária para o arraste de coluna funcionar — inclusive em
+// tabelas já salvas em notas antigas, que ganham isso ao serem abertas,
+// sem mudar a aparência que já tinham.
+function cqTabelaGarantirColgroup(tabela) {
+  if (tabela.querySelector(':scope > colgroup')) return;
+  const linhaCab = tabela.tHead && tabela.tHead.rows[0];
+  if (!linhaCab) return;
+  const colgroup = document.createElement('colgroup');
+  Array.from(linhaCab.cells).forEach(th => {
+    const col = document.createElement('col');
+    col.style.width = th.getBoundingClientRect().width + 'px';
+    colgroup.appendChild(col);
+  });
+  tabela.insertBefore(colgroup, tabela.firstChild);
+  tabela.style.tableLayout = 'fixed';
+}
+
+// ── Retrofit: acrescenta as alcinhas de arrastar borda (coluna/linha) em
+// tabelas que foram salvas antes desse recurso existir. Idempotente —
+// pode ser chamado toda vez que a nota é aberta, sem duplicar nada. ──
+function cqTabelaGarantirAlcasResize(tabela) {
+  const linhaCab = tabela.tHead && tabela.tHead.rows[0];
+  if (linhaCab) {
+    Array.from(linhaCab.cells).forEach(th => {
+      if (th.classList.contains('cq-tabela-linha-alca-cab')) return;
+      if (th.querySelector(':scope > .cq-tabela-col-resize')) return;
+      const handle = document.createElement('div');
+      handle.className = 'cq-tabela-col-resize';
+      handle.title = 'Arraste para redimensionar esta coluna';
+      handle.addEventListener('mousedown', (e) => cqTabelaColResizeIniciar(e, handle));
+      th.appendChild(handle);
+    });
+  }
+  tabela.querySelectorAll('td.cq-tabela-linha-alca').forEach(td => {
+    if (td.querySelector(':scope > .cq-tabela-linha-resize')) return;
+    const handle = document.createElement('div');
+    handle.className = 'cq-tabela-linha-resize';
+    handle.title = 'Arraste para redimensionar esta linha';
+    handle.addEventListener('mousedown', (e) => cqTabelaLinhaResizeIniciar(e, handle));
+    td.appendChild(handle);
+  });
+}
+
+// ── Arraste na borda direita do cabeçalho de uma coluna: muda só a
+// largura daquela coluna (via <col> no colgroup), sem afetar as demais. ──
+function cqTabelaColResizeIniciar(e, alca) {
+  e.preventDefault();
+  e.stopPropagation();
+  const th = alca.closest('th');
+  const tabela = th.closest('table');
+  cqTabelaGarantirColgroup(tabela);
+  const linhaCab = tabela.tHead.rows[0];
+  const colIdx = Array.prototype.indexOf.call(linhaCab.cells, th);
+  const colEl = tabela.querySelectorAll(':scope > colgroup > col')[colIdx];
+  if (!colEl) return;
+  const larguraInicial = colEl.getBoundingClientRect().width;
+  const inicioX = e.clientX;
+  function mover(ev) {
+    const nova = Math.max(30, larguraInicial + (ev.clientX - inicioX));
+    colEl.style.width = nova + 'px';
+  }
+  function soltar() {
+    document.removeEventListener('mousemove', mover);
+    document.removeEventListener('mouseup', soltar);
+    _cqHistoricoAgendar();
+  }
+  document.addEventListener('mousemove', mover);
+  document.addEventListener('mouseup', soltar);
+}
+
+// ── Arraste na borda inferior da alça ☰ de uma linha: muda só a altura
+// daquela linha, sem afetar as demais. ──
+function cqTabelaLinhaResizeIniciar(e, alca) {
+  e.preventDefault();
+  e.stopPropagation();
+  const tr = alca.closest('tr');
+  const alturaInicial = tr.getBoundingClientRect().height;
+  const inicioY = e.clientY;
+  function mover(ev) {
+    const nova = Math.max(20, alturaInicial + (ev.clientY - inicioY));
+    tr.style.height = nova + 'px';
+  }
+  function soltar() {
+    document.removeEventListener('mousemove', mover);
+    document.removeEventListener('mouseup', soltar);
+    _cqHistoricoAgendar();
   }
   document.addEventListener('mousemove', mover);
   document.addEventListener('mouseup', soltar);
@@ -8673,7 +8805,7 @@ function cqImprimirNota() {
       /* Comandos da tabela (➕linha, cores etc.), a alça de mover/arrastar
          e a coluna/linha de numeração (☰) são controles da TELA — nunca
          devem aparecer na impressão, só o conteúdo real da tabela. */
-      .cq-tabela-controles, .cq-tabela-resize-alca, .cq-tabela-alca, .cq-forma-rotate-alca{display:none!important;}
+      .cq-tabela-controles, .cq-tabela-resize-alca, .cq-tabela-alca, .cq-forma-rotate-alca, .cq-tabela-col-resize, .cq-tabela-linha-resize{display:none!important;}
       .cq-tabela-wrap{border:none!important;margin:6px 0!important;}
       table.cq-tabela td.cq-tabela-linha-alca, table.cq-tabela th.cq-tabela-linha-alca-cab{display:none!important;}
       .cq-shape-wrap.cq-forma-selecionada, .cq-tabela-wrap.cq-forma-selecionada{outline:none!important;box-shadow:none!important;}
