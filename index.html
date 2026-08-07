@@ -1267,6 +1267,15 @@ table.cq-tabela td.cq-tabela-cel-sel, table.cq-tabela th.cq-tabela-cel-sel{box-s
         <span class="btn-tag">■ ATIVO</span>
       </div>
     </div>
+    <div id="btn-menu-calculadoras" class="menu-btn" onclick="abrirCalculadoras()" style="display:none;">
+      <div class="corner corner-tl"></div><div class="corner corner-tr"></div>
+      <div class="corner corner-bl"></div><div class="corner corner-br"></div>
+      <div class="btn-inner">
+        <span class="btn-icon">➗</span>
+        <div class="btn-label">Calculadoras</div>
+        <span class="btn-tag">■ RESTRITO</span>
+      </div>
+    </div>
     <div id="btn-menu-usuarios" class="menu-btn" onclick="abrirGerenciarUsuarios()" style="display:none;">
       <div class="corner corner-tl"></div><div class="corner corner-tr"></div>
       <div class="corner corner-bl"></div><div class="corner corner-br"></div>
@@ -1377,6 +1386,139 @@ table.cq-tabela td.cq-tabela-cel-sel, table.cq-tabela th.cq-tabela-cel-sel{box-s
   </div>
 </div>
 
+
+<!-- ══════════════════════════════════════════════════════
+     TELA: CALCULADORAS
+══════════════════════════════════════════════════════ -->
+<div id="tela-calculadoras" style="display:none;position:relative;z-index:1;min-height:100vh;">
+  <div class="top-bar">
+    <button class="back-btn" onclick="voltarMenuCalculadoras()">← MENU</button>
+    <span class="tb-title">➗ CALCULADORAS</span>
+  </div>
+  <div class="ctc-body" style="max-width:860px;">
+    <div class="card" style="margin-bottom:2rem;">
+      <div class="card-title">➗ Selecione a Calculadora</div>
+      <p style="font-size:.85rem;color:var(--text2);margin-bottom:1.5rem;line-height:1.6;">Escolha uma das calculadoras disponíveis abaixo.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:.85rem;justify-content:center;">
+
+        <div id="btn-calc-faltas" class="menu-btn" style="width:210px;" onclick="abrirCalcFaltas()">
+          <div class="corner corner-tl"></div><div class="corner corner-tr"></div>
+          <div class="corner corner-bl"></div><div class="corner corner-br"></div>
+          <div class="btn-inner">
+            <span class="btn-icon">🗓️</span>
+            <div class="btn-label" style="font-size:1rem;">Calculadora de Faltas</div>
+            <span class="btn-tag">■ ATIVO</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     TELA: CALCULADORA DE FALTAS
+══════════════════════════════════════════════════════ -->
+<div id="tela-calc-faltas" style="display:none;position:relative;z-index:1;min-height:100vh;">
+  <div class="top-bar">
+    <button class="back-btn" onclick="calcFaltasVoltar()">← CALCULADORAS</button>
+    <span class="tb-title">🗓️ CALCULADORA DE FALTAS</span>
+  </div>
+  <div class="ctc-body" style="max-width:640px;">
+    <div class="card">
+      <div class="card-title">🗓️ Dados para Cálculo</div>
+
+      <div style="margin-bottom:1rem;">
+        <label style="display:block;font-size:.72rem;color:var(--text3);font-family:'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Nº de Faltas</label>
+        <input type="text" id="cf-faltas" inputmode="numeric"
+          style="width:100%;padding:.5rem .8rem;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.88rem;"
+          placeholder="ex: 2" oninput="calcFaltasAtualizar()">
+      </div>
+
+      <div style="margin:1.1rem 0 .5rem;padding-top:.2rem;border-top:1px dashed var(--border);">
+        <span style="font-size:.72rem;color:var(--accent);font-family:'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase;">■ Compõem Cód 56 (Inside IPMDC)</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem 1rem;margin-bottom:1rem;">
+        <div>
+          <label style="display:block;font-size:.72rem;color:var(--accent);font-family:'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Vencimento (R$)</label>
+          <input type="text" id="cf-vencimento" inputmode="decimal"
+            style="width:100%;padding:.5rem .8rem;background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.88rem;"
+            placeholder="ex: 2.500,00" oninput="calcFaltasAtualizar()">
+        </div>
+        <div>
+          <label style="display:block;font-size:.72rem;color:var(--accent);font-family:'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Triênio (R$)</label>
+          <input type="text" id="cf-trienio" inputmode="decimal"
+            style="width:100%;padding:.5rem .8rem;background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.88rem;"
+            placeholder="ex: 150,00" oninput="calcFaltasAtualizar()">
+        </div>
+        <div>
+          <label style="display:block;font-size:.72rem;color:var(--accent);font-family:'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Adic. Pós (R$)</label>
+          <input type="text" id="cf-adicpos" inputmode="decimal"
+            style="width:100%;padding:.5rem .8rem;background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.88rem;"
+            placeholder="ex: 0,00" oninput="calcFaltasAtualizar()">
+        </div>
+        <div>
+          <label style="display:block;font-size:.72rem;color:var(--accent);font-family:'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Adic. Mestr. (R$)</label>
+          <input type="text" id="cf-adicmestr" inputmode="decimal"
+            style="width:100%;padding:.5rem .8rem;background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.88rem;"
+            placeholder="ex: 0,00" oninput="calcFaltasAtualizar()">
+        </div>
+        <div>
+          <label style="display:block;font-size:.72rem;color:var(--accent);font-family:'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Avulso Cód 56 (R$)</label>
+          <input type="text" id="cf-avulso56" inputmode="decimal"
+            style="width:100%;padding:.5rem .8rem;background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.88rem;"
+            placeholder="ex: 0,00" oninput="calcFaltasAtualizar()">
+        </div>
+      </div>
+
+      <div style="margin:1.1rem 0 .5rem;padding-top:.2rem;border-top:1px dashed var(--border);">
+        <span style="font-size:.72rem;color:var(--accent3);font-family:'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase;">■ Compõem Cód 57 (Não Inside IPMDC)</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem 1rem;margin-bottom:1rem;">
+        <div>
+          <label style="display:block;font-size:.72rem;color:var(--accent3);font-family:'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Abono (R$)</label>
+          <input type="text" id="cf-abono" inputmode="decimal"
+            style="width:100%;padding:.5rem .8rem;background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--accent3);border-radius:6px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.88rem;"
+            placeholder="ex: 0,00" oninput="calcFaltasAtualizar()">
+        </div>
+        <div>
+          <label style="display:block;font-size:.72rem;color:var(--accent3);font-family:'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Insalubridade (R$)</label>
+          <input type="text" id="cf-insalubridade" inputmode="decimal"
+            style="width:100%;padding:.5rem .8rem;background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--accent3);border-radius:6px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.88rem;"
+            placeholder="ex: 0,00" oninput="calcFaltasAtualizar()">
+        </div>
+        <div>
+          <label style="display:block;font-size:.72rem;color:var(--accent3);font-family:'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Avulso Cód 57 (R$)</label>
+          <input type="text" id="cf-avulso57" inputmode="decimal"
+            style="width:100%;padding:.5rem .8rem;background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--accent3);border-radius:6px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.88rem;"
+            placeholder="ex: 0,00" oninput="calcFaltasAtualizar()">
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-outline" onclick="calcFaltasLimpar()">✕ Limpar</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📊 Resultado</div>
+      <div style="display:flex;flex-direction:column;gap:.6rem;font-size:.9rem;">
+        <div style="display:flex;justify-content:space-between;padding:.5rem .8rem;background:var(--bg2);border-radius:6px;border:1px solid var(--border);border-left:3px solid var(--accent);">
+          <span style="color:var(--text2);">Inside IPMDC (Cód 56)</span>
+          <span id="cf-out-56" style="font-family:'Share Tech Mono',monospace;color:var(--accent);">R$ 0,00</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:.5rem .8rem;background:var(--bg2);border-radius:6px;border:1px solid var(--border);border-left:3px solid var(--accent3);">
+          <span style="color:var(--text2);">Não Inside IPMDC (Cód 57)</span>
+          <span id="cf-out-57" style="font-family:'Share Tech Mono',monospace;color:var(--accent3);">R$ 0,00</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:.65rem .8rem;background:rgba(0,210,255,0.06);border-radius:6px;border:1px solid var(--accent);">
+          <span style="color:var(--text);font-weight:600;">Total de Descontos</span>
+          <span id="cf-out-total" style="font-family:'Share Tech Mono',monospace;color:var(--accent);font-weight:700;">R$ 0,00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ══════════════════════════════════════════════════════
      TELA: DIFERENÇA DE TRIÊNIO
@@ -3220,7 +3362,8 @@ function voltarEditarCertidao() {
 function voltarMenu() {
   S.modoAlterar = false;
   ['tela-ctc','tela-parecer','tela-modalidades','tela-submodalidades',
-   'tela-despachos','tela-edicao-parecer','tela-usuarios','tela-log','tela-calculos','tela-trienio','tela-consulta'].forEach(id => {
+   'tela-despachos','tela-edicao-parecer','tela-usuarios','tela-log','tela-calculos','tela-trienio','tela-consulta',
+   'tela-calculadoras','tela-calc-faltas'].forEach(id => {
     const el = document.getElementById(id); if(el) el.style.display = 'none';
   });
   document.getElementById('tela-menu').style.display = 'flex';
@@ -6532,11 +6675,15 @@ const _MODULOS = [
   { id:'chamados',      label:'Chamados',                niveis:['admin'] },
   { id:'usuarios',      label:'Gerenciar Usuários',      niveis:['admin'] },
   { id:'consulta_rapida', label:'Consulta Rápida',       niveis:['admin','operador'] },
+  { id:'calculadoras',   label:'Calculadoras',            niveis:['operador','admin'], defaultOff:true },
+  { id:'calc_faltas',    label:'↳ Calculadora de Faltas', niveis:['operador','admin'], defaultOff:true },
 ];
 
 function _permissoesDefault(nivel) {
   const obj = {};
-  _MODULOS.forEach(m => { obj[m.id] = m.niveis.includes(nivel); });
+  // defaultOff: módulo exclusivo do master por padrão — admin/operador só têm
+  // acesso se a permissão for concedida explicitamente na tela "Usuários".
+  _MODULOS.forEach(m => { obj[m.id] = m.defaultOff ? false : m.niveis.includes(nivel); });
   return obj;
 }
 
@@ -9100,6 +9247,7 @@ function atualizarMenuPorNivel() {
     { elId: 'btn-menu-ctc',        modId: 'ctc' },
     { elId: 'btn-menu-despachos',  modId: 'despachos' },
     { elId: 'btn-menu-calculos',   modId: 'calculos' },
+    { elId: 'btn-menu-calculadoras', modId: 'calculadoras' },
     { elId: 'btn-menu-usuarios',   modId: 'usuarios' },
     { elId: 'btn-menu-chamados',   modId: 'chamados' },
     { elId: 'btn-menu-consulta',   modId: 'consulta_rapida' },
@@ -9112,6 +9260,7 @@ function atualizarMenuPorNivel() {
     { elId: 'btn-calc-mestrado',     modId: 'calc_mestrado' },
     { elId: 'btn-calc-doutorado',    modId: 'calc_doutorado' },
     { elId: 'btn-calc-mudancaNivel', modId: 'calc_nivel' },
+    { elId: 'btn-calc-faltas',       modId: 'calc_faltas' },
   ];
 
   // Aplica visibilidade no menu principal — todos os módulos passam por _temPermissao
@@ -9158,7 +9307,8 @@ async function fazerLogout() {
 
 function voltarParaLogin() {
   ['tela-menu','tela-ctc','tela-parecer','tela-modalidades','tela-submodalidades',
-   'tela-despachos','tela-edicao-parecer','tela-usuarios','tela-log','tela-calculos','tela-trienio'].forEach(id => {
+   'tela-despachos','tela-edicao-parecer','tela-usuarios','tela-log','tela-calculos','tela-trienio',
+   'tela-calculadoras','tela-calc-faltas'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   document.getElementById('tela-login').style.display = 'flex';
@@ -9187,7 +9337,8 @@ async function confirmarTrocaSenha() {
 /* ── voltarMenu ── */
 function voltarMenuMaster() {
   ['tela-ctc','tela-parecer','tela-modalidades','tela-submodalidades',
-   'tela-despachos','tela-edicao-parecer','tela-usuarios','tela-log','tela-chamados','tela-calculos','tela-trienio'].forEach(id => {
+   'tela-despachos','tela-edicao-parecer','tela-usuarios','tela-log','tela-chamados','tela-calculos','tela-trienio',
+   'tela-calculadoras','tela-calc-faltas'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   document.getElementById('tela-menu').style.display = 'flex';
@@ -10132,6 +10283,69 @@ function abrirCalcItem(tipo) {
   }
   const nome = _calcNomes[tipo] || tipo;
   alert(`⚙️ Funcionalidade "${nome}" em desenvolvimento.\n\nEm breve disponível neste módulo.`);
+}
+
+/* ══════════════════════════════════════════════════════════
+   MÓDULO: CALCULADORAS
+══════════════════════════════════════════════════════════ */
+function abrirCalculadoras() {
+  if (!_temPermissao('calculadoras')) return;
+  ['tela-menu','tela-ctc','tela-parecer','tela-modalidades','tela-submodalidades',
+   'tela-despachos','tela-edicao-parecer','tela-usuarios','tela-log','tela-chamados',
+   'tela-calculos'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  document.getElementById('tela-calculadoras').style.display = 'block';
+}
+function voltarMenuCalculadoras() {
+  document.getElementById('tela-calculadoras').style.display = 'none';
+  document.getElementById('tela-menu').style.display = 'flex';
+}
+
+/* ── Calculadora de Faltas ──
+   Reproduz a lógica de CALCULADORA_DE_FALTAS.xlsx, com campos avulsos extras:
+   baseInside    = Vencimento + Triênio + AdicPós + AdicMestr + Avulso Cód 56
+   baseNaoInside = Abono + Insalubridade + Avulso Cód 57
+   Cód 56 (Inside)     = baseInside / 30 * Nº de Faltas
+   Cód 57 (Não Inside) = baseNaoInside / 30 * Nº de Faltas
+   Total               = Cód 56 + Cód 57
+*/
+function abrirCalcFaltas() {
+  if (!_temPermissao('calc_faltas')) return;
+  document.getElementById('tela-calculadoras').style.display = 'none';
+  document.getElementById('tela-calc-faltas').style.display = 'block';
+  calcFaltasLimpar();
+}
+function calcFaltasVoltar() {
+  document.getElementById('tela-calc-faltas').style.display = 'none';
+  document.getElementById('tela-calculadoras').style.display = 'block';
+}
+function calcFaltasLimpar() {
+  ['cf-faltas','cf-vencimento','cf-trienio','cf-abono','cf-insalubridade','cf-adicpos','cf-adicmestr','cf-avulso56','cf-avulso57']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  calcFaltasAtualizar();
+}
+function calcFaltasAtualizar() {
+  const nFaltas       = parseBR(document.getElementById('cf-faltas').value);
+  const vencimento    = parseBR(document.getElementById('cf-vencimento').value);
+  const trienio       = parseBR(document.getElementById('cf-trienio').value);
+  const abono         = parseBR(document.getElementById('cf-abono').value);
+  const insalubridade = parseBR(document.getElementById('cf-insalubridade').value);
+  const adicPos       = parseBR(document.getElementById('cf-adicpos').value);
+  const adicMestr     = parseBR(document.getElementById('cf-adicmestr').value);
+  const avulso56      = parseBR(document.getElementById('cf-avulso56').value);
+  const avulso57      = parseBR(document.getElementById('cf-avulso57').value);
+
+  const baseInside    = vencimento + trienio + adicPos + adicMestr + avulso56;
+  const baseNaoInside = abono + insalubridade + avulso57;
+
+  const cod56 = (baseInside / 30) * nFaltas;
+  const cod57 = (baseNaoInside / 30) * nFaltas;
+  const total = cod56 + cod57;
+
+  document.getElementById('cf-out-56').textContent    = 'R$ ' + fmtBR(cod56);
+  document.getElementById('cf-out-57').textContent    = 'R$ ' + fmtBR(cod57);
+  document.getElementById('cf-out-total').textContent = 'R$ ' + fmtBR(total);
 }
 
 /* ══════════════════════════════════════════════════════════
