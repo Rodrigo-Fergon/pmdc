@@ -1406,7 +1406,7 @@ table.cq-tabela td.cq-tabela-cel-sel, table.cq-tabela th.cq-tabela-cel-sel{box-s
           <div class="corner corner-bl"></div><div class="corner corner-br"></div>
           <div class="btn-inner">
             <span class="btn-icon">🗓️</span>
-            <div class="btn-label" style="font-size:1rem;">Calculadora de Faltas</div>
+            <div class="btn-label" style="font-size:1rem;">Devolução de Faltas - SMS</div>
             <span class="btn-tag">■ ATIVO</span>
           </div>
         </div>
@@ -1417,12 +1417,12 @@ table.cq-tabela td.cq-tabela-cel-sel, table.cq-tabela th.cq-tabela-cel-sel{box-s
 </div>
 
 <!-- ══════════════════════════════════════════════════════
-     TELA: CALCULADORA DE FALTAS
+     TELA: DEVOLUÇÃO DE FALTAS - SMS
 ══════════════════════════════════════════════════════ -->
 <div id="tela-calc-faltas" style="display:none;position:relative;z-index:1;min-height:100vh;">
   <div class="top-bar">
     <button class="back-btn" onclick="calcFaltasVoltar()">← CALCULADORAS</button>
-    <span class="tb-title">🗓️ CALCULADORA DE FALTAS</span>
+    <span class="tb-title">🗓️ DEVOLUÇÃO DE FALTAS - SMS</span>
   </div>
   <div class="ctc-body" style="max-width:640px;">
     <div class="card">
@@ -6676,7 +6676,7 @@ const _MODULOS = [
   { id:'usuarios',      label:'Gerenciar Usuários',      niveis:['admin'] },
   { id:'consulta_rapida', label:'Consulta Rápida',       niveis:['admin','operador'] },
   { id:'calculadoras',   label:'Calculadoras',            niveis:['operador','admin'], defaultOff:true },
-  { id:'calc_faltas',    label:'↳ Calculadora de Faltas', niveis:['operador','admin'], defaultOff:true },
+  { id:'calc_faltas',    label:'↳ Devolução de Faltas - SMS', niveis:['operador','admin'], defaultOff:true },
 ];
 
 function _permissoesDefault(nivel) {
@@ -10302,7 +10302,7 @@ function voltarMenuCalculadoras() {
   document.getElementById('tela-menu').style.display = 'flex';
 }
 
-/* ── Calculadora de Faltas ──
+/* ── Devolução de Faltas - SMS ──
    Reproduz a lógica de CALCULADORA_DE_FALTAS.xlsx, com campos avulsos extras:
    baseInside    = Vencimento + Triênio + AdicPós + AdicMestr + Avulso Cód 56
    baseNaoInside = Abono + Insalubridade + Avulso Cód 57
