@@ -4088,13 +4088,30 @@ async function processarTudo() {
           const anoN   = parseInt(anoStr);
           const contr  = parsed.contrib[anoStr];
           const entries = Object.entries(contr).filter(([,v]) => v && v.desc > 0);
-          if (entries.length) {
+          /* Metadados de nível-ano (chaves prefixadas com "_", ex.: _mesesRef50_32,
+             _cod39) não são meses e por isso não passam no filtro acima — copiá-los
+             separadamente, sem exigir "desc > 0", ou eles se perdem silenciosamente
+             na mesclagem e qualquer lógica que dependa deles (como a detecção do
+             gatilho de código 50/32) nunca funciona. */
+          const metaKeys = Object.keys(contr).filter(k => k.startsWith('_'));
+          if (entries.length || metaKeys.length) {
             if (!S.contrib[anoN]) S.contrib[anoN] = {};
             entries.forEach(([m,v]) => {
               if (!S.contrib[anoN][m] || S.contrib[anoN][m].desc === 0)
                 S.contrib[anoN][m] = v;
             });
-            anosOk.push(anoStr);
+            metaKeys.forEach(k => {
+              if (k === '_mesesRef50_32') {
+                /* União: um mesmo ano pode ter esse array preenchido por mais de
+                   um arquivo processado — combinar em vez de sobrescrever. */
+                const existente = S.contrib[anoN][k] || [];
+                const novo = contr[k] || [];
+                S.contrib[anoN][k] = Array.from(new Set([...existente, ...novo]));
+              } else if (S.contrib[anoN][k] === undefined) {
+                S.contrib[anoN][k] = contr[k];
+              }
+            });
+            if (entries.length) anosOk.push(anoStr);
           }
         }
         if (badge) { badge.className   = anosOk.length ? 'badge badge-ok'  : 'badge badge-err';
