@@ -4267,34 +4267,41 @@ function aplicarProporcionalIni() {
   }
 
   /* ── SITUAÇÃO B PURA: verificar se há mês de referência pelos códigos 50/32 ──
-     Se algum ano dentro do período contiver _mesesRef50_32, identificar o mês
-     de referência (o mais tardio com 50 ou 32 dentro do período) e aplicar a
-     lógica de proporcionalização dos meses iniciais com fechamento exato no
-     valor do código 164 do mês de referência. */
+     Regra: o mês de referência é a PRIMEIRA ocorrência cronológica do código
+     50/32 dentro do período (nunca a mais tardia). Não importa se algum mês
+     intermediário já tem um valor de 164 lançado por outro motivo — isso não
+     encerra o "buraco" dos meses iniciais zerados; só a diferença salarial
+     (50/32) em si marca o fim do buraco e serve de referência. Por isso não
+     paramos a varredura ao encontrar um 164 > 0 no meio do caminho — apenas
+     ao encontrar o próprio 50/32.
+     O que realmente causava o bug original (CTC da Cristiane da Silva Belo,
+     matrícula 159100) era pegar o 50/32 mais TARDIO do período inteiro: o
+     código 32 de abril/2003 era o gatilho correto, mas o código 50 de
+     junho/2011 (um reajuste de carreira comum) acabava sendo escolhido por
+     ser mais recente, quebrando o cálculo. Bastava trocar "mais tardio" por
+     "mais cedo" — sem precisar de nenhuma outra condição adicional. */
   if (!S.situacaoA && S.situacaoB) {
     const anoIni = S.periodoIni.getFullYear();
     const mesIni = S.periodoIni.getMonth(); /* 0-based */
     const diaIni = S.periodoIni.getDate();
 
-    /* Procurar o mês de referência: percorrer anos/meses do período em ordem
-       e pegar o último que tiver _mesesRef50_32 */
-    let refAno = null, refMesIdx = null;
+    /* Procurar o mês de referência: a PRIMEIRA ocorrência de 50/32 dentro
+       do período (menor distância em meses desde o início do período) */
+    let refAno = null, refMesIdx = null, refDist = Infinity;
     for (const anoStr in S.contrib) {
       const anoN = parseInt(anoStr);
       const lista = S.contrib[anoStr]?._mesesRef50_32;
       if (!lista || !lista.length) continue;
-      /* Filtrar apenas meses dentro do período ini→fim */
       for (const mi of lista) {
-        /* Só contar meses que sejam >= data inicial e <= data final */
-        const depoisIni = anoN > anoIni || (anoN === anoIni && mi >= mesIni);
-        const antesRef  = refAno === null || anoN < refAno || (anoN === refAno && mi < refMesIdx);
-        /* Pegamos o mais TARDIO (último mês de referência no período) */
-        if (depoisIni) {
-          if (refAno === null || anoN > refAno || (anoN === refAno && mi > refMesIdx)) {
-            refAno = anoN; refMesIdx = mi;
-          }
+        const dist = (anoN - anoIni) * 12 + (mi - mesIni);
+        if (dist < 0) continue; /* antes do início do período → ignora */
+        if (dist < refDist) {
+          refDist = dist; refAno = anoN; refMesIdx = mi;
         }
       }
+    }
+    if (refAno !== null) {
+      console.log(`Cód.50/32: primeira ocorrência dentro do período → ${MESES_KEY[refMesIdx]}/${refAno} (${refDist} mês(es) após o início do período)`);
     }
 
     if (refAno !== null && refMesIdx !== null) {
