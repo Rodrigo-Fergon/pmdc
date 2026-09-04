@@ -5564,7 +5564,9 @@ function ajustarPaginacaoCTC() {
   if (paginaAtual.length) paginas.push(paginaAtual);
 
   const totalPaginas = paginas.length;
-  if (badgeP1) badgeP1.textContent = `1/${totalPaginas}`;
+  /* Documento de página única: não mostrar indicador de página nenhum
+     (nem "1/1"), deixar o campo sem informação. */
+  if (badgeP1) badgeP1.textContent = totalPaginas <= 1 ? '' : `1/${totalPaginas}`;
 
   /* Cria uma cópia — sem ids nem contenteditable, para não conflitar com o
      conteúdo editável original nem duplicar ids no DOM — do Bloco 1+2
