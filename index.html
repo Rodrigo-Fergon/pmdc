@@ -235,14 +235,18 @@ table.ctb td[contenteditable="true"]:focus{background:#fffbe6;outline:1px solid 
   /* Chrome/Edge: hide running headers and footers */
   @page :first { margin-top: 1.4cm; }
 
-  /* Ocultar toda a interface — mostrar só a certidão */
+  /* Ocultar toda a interface — mostrar só a certidão.
+     IMPORTANTE: escopado sob "body.print-ctc" (ligada por imprimirNormal()/
+     salvarPDF() só durante o window.print(), e removida logo depois) para
+     nunca forçar a tela do CTC a aparecer durante a impressão de outro
+     módulo (ex.: Protocolo) — e vice-versa. */
   html,body{background:#fff!important;margin:0;padding:0;}
-  body > *{display:none!important;}
-  #tela-ctc{display:block!important;background:#fff!important;}
-  #tela-ctc > *:not(.ctc-body){display:none!important;}
+  body.print-ctc > *{display:none!important;}
+  body.print-ctc #tela-ctc{display:block!important;background:#fff!important;}
+  body.print-ctc #tela-ctc > *:not(.ctc-body){display:none!important;}
   .ctc-body{background:#fff!important;padding:0!important;margin:0!important;max-width:100%!important;}
-  .ctc-body > *:not(#page4){display:none!important;}
-  #page4{display:block!important;background:#fff!important;margin:0!important;padding:0!important;}
+  body.print-ctc .ctc-body > *:not(#page4){display:none!important;}
+  body.print-ctc #page4{display:block!important;background:#fff!important;margin:0!important;padding:0!important;}
   .btn-row.no-print, .cert-toolbar{display:none!important;}
   #certidao-wrap{display:block!important;border:none!important;border-radius:0!important;background:#fff!important;margin-bottom:0!important;}
   #certidao-editavel{display:block!important;background:#fff!important;color:#000!important;padding:0!important;}
@@ -2302,9 +2306,16 @@ table.cq-tabela td.cq-tabela-cel-sel, table.cq-tabela th.cq-tabela-cel-sel{box-s
   width: auto;
 }/* ════════════════════════════════════════
    PRINT / PDF STYLES
-════════════════════════════════════════ */@media print {/* Hide everything except protocolo-print-area */body > *:not(#tela-protocolo) { display: none !important; }
-  #tela-protocolo > *:not(#protocolo-scope) { display: none !important; }
-  #protocolo-scope > *:not(#protocolo-print-area) { display: none !important; }#protocolo-scope #protocolo-print-area { display: block !important; }#protocolo-scope { background: #fff !important; color: #000 !important; font-family: Arial, sans-serif; }/* Report header */#protocolo-scope .ph { border-bottom: 2px solid #1A1A2E; margin-bottom: 12px; padding-bottom: 8px; }#protocolo-scope .ph h1 { font-size: 16pt; color: #1A1A2E; margin: 0 0 4px; }#protocolo-scope .pm { font-size: 9pt; color: #555; }#protocolo-scope .ph-stripe { height: 3px; background: linear-gradient(90deg,#C9A84C,#1A1A2E); margin-top: 6px; }/* Summary bar */#protocolo-scope .ps { display: flex; gap: 24px; margin-bottom: 10px; font-size: 9pt; color: #333; }#protocolo-scope .ps span { font-weight: bold; color: #1A1A2E; }/* Table */#protocolo-scope .pt { width: 100%; border-collapse: collapse; font-size: 8pt; }#protocolo-scope .pt thead tr { background: #1A1A2E; color: #C9A84C; }#protocolo-scope .pt th { padding: 5px 6px; text-align: left; font-size: 7.5pt; letter-spacing: 0.05em; }#protocolo-scope .pt td { padding: 4px 6px; border-bottom: 1px solid #e0e0e0; vertical-align: top; }#protocolo-scope .pt tr:nth-child(even) td { background: #f7f4ee; }/* Footer */#protocolo-scope .pf { margin-top: 12px; font-size: 8pt; color: #888; border-top: 1px solid #ccc; padding-top: 6px; text-align: center; }@page { margin: 1.5cm 1.2cm; size: A4 landscape; }/* Single card print */#protocolo-scope .pc-card { font-family: Arial, sans-serif; }#protocolo-scope .pc-header {
+   IMPORTANTE: todas as regras abaixo só valem quando a classe
+   "print-protocolo" está presente no <body> — ligada pelo JS do próprio
+   módulo Protocolo (relImprimir/imprimirDespachoCard) só durante a chamada
+   a window.print(), e removida logo em seguida. Isso garante que o CSS de
+   impressão do Protocolo NUNCA interfira na impressão de nenhum outro
+   módulo do sistema (CTC, Consulta Rápida, etc.), que já funcionavam antes
+   deste módulo existir.
+════════════════════════════════════════ */@media print {/* Hide everything except protocolo-print-area */body.print-protocolo > * { display: none !important; }body.print-protocolo #tela-protocolo { display: block !important; }
+  body.print-protocolo #tela-protocolo > *:not(#protocolo-scope) { display: none !important; }
+  body.print-protocolo #protocolo-scope > *:not(#protocolo-print-area) { display: none !important; }body.print-protocolo #protocolo-scope #protocolo-print-area { display: block !important; }#protocolo-scope { background: #fff !important; color: #000 !important; font-family: Arial, sans-serif; }/* Report header */#protocolo-scope .ph { border-bottom: 2px solid #1A1A2E; margin-bottom: 12px; padding-bottom: 8px; }#protocolo-scope .ph h1 { font-size: 16pt; color: #1A1A2E; margin: 0 0 4px; }#protocolo-scope .pm { font-size: 9pt; color: #555; }#protocolo-scope .ph-stripe { height: 3px; background: linear-gradient(90deg,#C9A84C,#1A1A2E); margin-top: 6px; }/* Summary bar */#protocolo-scope .ps { display: flex; gap: 24px; margin-bottom: 10px; font-size: 9pt; color: #333; }#protocolo-scope .ps span { font-weight: bold; color: #1A1A2E; }/* Table */#protocolo-scope .pt { width: 100%; border-collapse: collapse; font-size: 8pt; }#protocolo-scope .pt thead tr { background: #1A1A2E; color: #C9A84C; }#protocolo-scope .pt th { padding: 5px 6px; text-align: left; font-size: 7.5pt; letter-spacing: 0.05em; }#protocolo-scope .pt td { padding: 4px 6px; border-bottom: 1px solid #e0e0e0; vertical-align: top; }#protocolo-scope .pt tr:nth-child(even) td { background: #f7f4ee; }/* Footer */#protocolo-scope .pf { margin-top: 12px; font-size: 8pt; color: #888; border-top: 1px solid #ccc; padding-top: 6px; text-align: center; }/* Single card print */#protocolo-scope .pc-card { font-family: Arial, sans-serif; }#protocolo-scope .pc-header {
     display: flex; align-items: flex-start; justify-content: space-between;
     border-bottom: 2px solid #1A1A2E; margin-bottom: 14px; padding-bottom: 10px;
   }#protocolo-scope .pc-proc { font-size: 18pt; font-weight: bold; color: #1A1A2E; }#protocolo-scope .pc-ano { font-size: 9pt; color: #555; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }#protocolo-scope .pc-meta { font-size: 8pt; color: #888; white-space: nowrap; }#protocolo-scope .pc-row { margin-bottom: 12px; }#protocolo-scope .pc-row-split { display: flex; gap: 24px; }#protocolo-scope .pc-row-split > div { flex: 1; }#protocolo-scope .pc-lbl {
@@ -3410,6 +3421,11 @@ table.cq-tabela td.cq-tabela-cel-sel, table.cq-tabela th.cq-tabela-cel-sel{box-s
         </div>
 
         <div class="field full" style="margin-top:.8rem;">
+          <label class="field-opt">Data de Exoneração/Demissão (opcional — preencher quando não constar na ficha financeira, ex.: período somente em Situação A):</label>
+          <input type="date" id="f-exoneracao" onkeydown="if(event.key==='Enter'||event.key==='Tab'){event.preventDefault();document.getElementById('f-destino').focus();}">
+        </div>
+
+        <div class="field full" style="margin-top:.8rem;">
           <label class="field-opt">Finalidade:</label>
           <input type="text" id="f-destino" placeholder="Ex: Instituto Nacional do Seguro Social — INSS" maxlength="200" onkeydown="if(event.key==='Enter'||event.key==='Tab'){event.preventDefault();document.getElementById('btn-periodo-ok').focus();}">
         </div>
@@ -3630,6 +3646,7 @@ const S = {
   pctFuturo: {},
   situacaoA: false, situacaoB: false,
   modoAlterar: false,
+  exoneracaoManual: null, /* Data de Exoneração/Demissão digitada manualmente na Etapa 1 (opcional) — tem prioridade sobre a extraída da ficha financeira */
   _futuroResolve: null,
   _rebaseManual: null,
   _m3AutoOriginal: null, /* localização e valor bruto do M3 detectado automaticamente */
@@ -3640,6 +3657,15 @@ const S = {
 const MESES_KEY = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez','dec13'];
 const MESES_PT  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                    'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro','Décimo Terceiro'];
+
+// Data de Exoneração/Demissão digitada manualmente na Etapa 1 (opcional).
+// Usada principalmente quando o período é só Situação A (sem ficha
+// financeira para extrair automaticamente). Retorna string ISO
+// (yyyy-mm-dd) ou '' se não preenchida.
+function getExoneracaoManual() {
+  const el = document.getElementById('f-exoneracao');
+  return el ? el.value : '';
+}
 
 /* ═══════════════════════════════════════════════════════════════════════
    TABELA EXCEL — comportamento de edição "estilo planilha" reutilizável
@@ -3999,8 +4025,9 @@ function submenuNova() {
   /* Reset state for new certidão */
   S.contrib={}; S.files=[]; S.filesDec13=[]; S.dados={}; S.situacaoA=false; S.situacaoB=false;
   S.periodoIni=null; S.periodoFim=null; S.pctFuturo={}; S.modoAlterar=false;
+  S.exoneracaoManual=null;
   S._m3AutoOriginal=null; S._hibridBProtegidos=null; S._ref50_32=null;
-  ['f-ini','f-fim','f-nome','f-mat','f-cpf','f-pis','f-nasc','f-mae','f-cargo','f-ctc','f-destino'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['f-ini','f-fim','f-nome','f-mat','f-cpf','f-pis','f-nasc','f-mae','f-cargo','f-ctc','f-destino','f-exoneracao'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('file-list').innerHTML='';
   const flDec13=document.getElementById('file-list-dec13'); if(flDec13) flDec13.innerHTML='';
   document.getElementById('periodo-info').innerHTML=''; document.getElementById('periodo-info').classList.add('hidden');
@@ -4582,7 +4609,14 @@ function carregarCertidaoExistente(input) {
       document.getElementById('f-ini').value = toISO(S.periodoIni);
       document.getElementById('f-fim').value = toISO(S.periodoFim);
       if (state.admissao)   S.dados.admissao = state.admissao;
-      if (state.exoneracao) S.dados.demissao = state.exoneracao;
+      if (state.exoneracao) {
+        S.dados.demissao = state.exoneracao;
+        // Só repovoa o campo manual se o valor salvo estiver em formato ISO
+        // (yyyy-mm-dd), ou seja, veio de preenchimento manual e não da ficha
+        // financeira (que grava em dd/mm/aaaa).
+        const exoEl = document.getElementById('f-exoneracao');
+        if (exoEl) exoEl.value = /^\d{4}-\d{2}-\d{2}$/.test(state.exoneracao) ? state.exoneracao : '';
+      }
 
       /* Atualizar período sem reinicializar contrib */
       verificarPeriodo();
@@ -6538,7 +6572,7 @@ async function gerarCertidao() {
   // Quando só há Situação A, não há ficha financeira para extrair a admissão —
   // nesse caso, exibir a Data Inicial do Período informada na Etapa "1-Período".
   const admDisplay = fmtDateStr(S.dados.admissao || (S.periodoIni ? S.periodoIni.toISOString().slice(0,10) : ''));
-  const exoDisplay = fmtDateStr(S.dados.demissao || '');
+  const exoDisplay = fmtDateStr(getExoneracaoManual() || S.dados.demissao || '');
 
   const periodoTexto = S.periodoIni.toLocaleDateString('pt-BR') + ' A ' + S.periodoFim.toLocaleDateString('pt-BR');
   const hoje = new Date().toLocaleDateString('pt-BR');
@@ -6699,7 +6733,7 @@ async function gerarCertidao() {
     </tr>
     <tr>
       <td class="lb"><strong>CARGO / FUNÇÃO</strong></td>
-      <td class="lb" colspan="3"><strong>DATA DA EXONERAÇÃO</strong></td>
+      <td class="lb" colspan="3"><strong>DATA DE EXONERAÇÃO/DEMISSÃO</strong></td>
     </tr>
     <tr>
       <td class="vl" style="text-transform:uppercase;">${ce('cargo',d.cargo,'','200px')}</td>
@@ -6996,7 +7030,7 @@ function imprimirNormal() {
     periodoIni: S.periodoIni ? S.periodoIni.toISOString() : null,
     periodoFim: S.periodoFim ? S.periodoFim.toISOString() : null,
     admissao:   S.dados.admissao || '',
-    exoneracao: S.dados.demissao || ''
+    exoneracao: getExoneracaoManual() || S.dados.demissao || ''
   };
   const jsonId = '__pmdc_state__';
   let stateDiv = document.getElementById(jsonId);
@@ -7015,10 +7049,31 @@ function imprimirNormal() {
      bug do Chrome em que o PDF salvo sai em branco mesmo com a
      pré-visualização correta (ver explicação detalhada em salvarPDF(),
      mantida no código abaixo por referência). */
+
+  // Força A4 retrato / margem 1,4cm para a certidão, independente de outra
+  // regra @page (ex.: relatório do Protocolo, que usa paisagem) já ter sido
+  // aplicada nesta mesma página — mesma técnica usada em pc-print-orientation.
+  let ctcOrient = document.getElementById('ctc-print-orientation');
+  if (!ctcOrient) {
+    ctcOrient = document.createElement('style');
+    ctcOrient.id = 'ctc-print-orientation';
+  }
+  // Anexado ao body (não ao head) e sempre movido para o final: garante que
+  // esta regra @page vem DEPOIS de qualquer <style> de outro módulo (ex.:
+  // Protocolo, cujo bloco de estilo fica no body) na ordem do documento —
+  // é essa ordem, e não a posição no head, que decide o empate no @page.
+  document.body.appendChild(ctcOrient);
+  ctcOrient.textContent = '@media print { @page { size: A4 portrait; margin: 1.4cm; } }';
+  // Liga o escopo de impressão do CTC (só ele deve ficar visível) — nunca
+  // deixa o CTC vazar para a impressão de outro módulo, nem vice-versa.
+  document.body.classList.add('print-ctc');
+
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       window.print();
       document.title = origTitle;
+      ctcOrient.remove();
+      document.body.classList.remove('print-ctc');
     });
   });
 }
@@ -7039,7 +7094,7 @@ function salvarPDF() {
     periodoIni: S.periodoIni ? S.periodoIni.toISOString() : null,
     periodoFim: S.periodoFim ? S.periodoFim.toISOString() : null,
     admissao:   S.dados.admissao || '',
-    exoneracao: S.dados.demissao || ''
+    exoneracao: getExoneracaoManual() || S.dados.demissao || ''
   };
   const jsonId = '__pmdc_state__';
   let stateDiv = document.getElementById(jsonId);
@@ -7075,10 +7130,31 @@ function salvarPDF() {
      hora), mas o PDF salvo pelo destino "Salvar como PDF" sai em branco.
      Esperar dois frames de renderização (rAF aninhado) antes de chamar
      window.print() garante que o navegador já processou o novo layout. */
+
+  // Força A4 retrato / margem 1,4cm para a certidão, independente de outra
+  // regra @page (ex.: relatório do Protocolo, que usa paisagem) já ter sido
+  // aplicada nesta mesma página — mesma técnica usada em pc-print-orientation.
+  let ctcOrient = document.getElementById('ctc-print-orientation');
+  if (!ctcOrient) {
+    ctcOrient = document.createElement('style');
+    ctcOrient.id = 'ctc-print-orientation';
+  }
+  // Anexado ao body (não ao head) e sempre movido para o final: garante que
+  // esta regra @page vem DEPOIS de qualquer <style> de outro módulo (ex.:
+  // Protocolo, cujo bloco de estilo fica no body) na ordem do documento —
+  // é essa ordem, e não a posição no head, que decide o empate no @page.
+  document.body.appendChild(ctcOrient);
+  ctcOrient.textContent = '@media print { @page { size: A4 portrait; margin: 1.4cm; } }';
+  // Liga o escopo de impressão do CTC (só ele deve ficar visível) — nunca
+  // deixa o CTC vazar para a impressão de outro módulo, nem vice-versa.
+  document.body.classList.add('print-ctc');
+
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       window.print();
       document.title = origTitle;
+      ctcOrient.remove();
+      document.body.classList.remove('print-ctc');
     });
   });
 }
@@ -7125,7 +7201,7 @@ function exportarXLS() {
   // Quando só há Situação A, não há ficha financeira para extrair a admissão —
   // nesse caso, exibir a Data Inicial do Período informada na Etapa "1-Período".
   const admDisplay = fmtDateStr(S.dados.admissao || (S.periodoIni ? S.periodoIni.toISOString().slice(0,10) : ''));
-  const exoDisplay = fmtDateStr(S.dados.demissao || '');
+  const exoDisplay = fmtDateStr(getExoneracaoManual() || S.dados.demissao || '');
   const hoje       = new Date().toLocaleDateString('pt-BR');
   const periodoTexto = S.periodoIni && S.periodoFim
     ? S.periodoIni.toLocaleDateString('pt-BR') + ' A ' + S.periodoFim.toLocaleDateString('pt-BR') : '';
@@ -7231,7 +7307,7 @@ function exportarXLS() {
   sc(row,0,'CPF', ST.lb); merge(row,0,row,7);
   sc(row,9,'PIS/PASEP', ST.lb); merge(row,9,row,17);
   sc(row,19,'DATA DE ADMISSÃO', ST.lb); merge(row,19,row,31);
-  sc(row,33,'DATA DA EXONERAÇÃO', ST.lb); merge(row,33,row,TOTAL_COLS-1);
+  sc(row,33,'DATA DE EXONERAÇÃO/DEMISSÃO', ST.lb); merge(row,33,row,TOTAL_COLS-1);
   bump(row,TOTAL_COLS-1); row++;
   /* CPF / PIS / Admissão - valor */
   sc(row,0,d.cpf||'', ST.vl); merge(row,0,row,7);
@@ -7366,7 +7442,7 @@ function exportarXLS() {
     periodoIni: S.periodoIni ? S.periodoIni.toISOString() : null,
     periodoFim: S.periodoFim ? S.periodoFim.toISOString() : null,
     admissao:   S.dados.admissao || '',
-    exoneracao: S.dados.demissao || ''
+    exoneracao: getExoneracaoManual() || S.dados.demissao || ''
   };
   wsState['A1'] = {v:'PMDC_STATE_JSON',t:'s',s:{font:{bold:true}}};
   wsState['A2'] = {v: JSON.stringify(stateObj), t:'s'};
@@ -14414,8 +14490,26 @@ function gerarRel(mode){
   pa.innerHTML = html;
   pa.style.display = 'block';
   closeRel();
+
+  // Liga o escopo de impressão do Protocolo (só ele deve ficar visível) e
+  // define A4 paisagem só para esta impressão — ambos desligados/removidos
+  // logo depois, para nunca vazar para a impressão de outro módulo.
+  document.body.classList.add('print-protocolo');
+  let relOrient = document.getElementById('protocolo-print-orientation');
+  if (!relOrient) {
+    relOrient = document.createElement('style');
+    relOrient.id = 'protocolo-print-orientation';
+  }
+  document.body.appendChild(relOrient);
+  relOrient.textContent = '@media print { @page { size: A4 landscape; margin: 1.5cm 1.2cm; } }';
+
   showToast('🖨️ Abrindo impressão — escolha "Salvar como PDF" na janela do navegador');
-  setTimeout(() => { window.print(); pa.style.display = 'none'; }, 700);
+  setTimeout(() => {
+    window.print();
+    pa.style.display = 'none';
+    document.body.classList.remove('print-protocolo');
+    relOrient.remove();
+  }, 700);
 }
 
 // ════════════════════════════════════════
@@ -14592,20 +14686,24 @@ function printViewCard() {
   pa.innerHTML = html;
   pa.style.display = 'block';
 
+  // Liga o escopo de impressão do Protocolo (só ele deve ficar visível).
+  document.body.classList.add('print-protocolo');
+
   // Força orientação RETRATO apenas para a impressão deste card
-  // (o relatório geral usa paisagem por padrão — ver @page no <style> principal)
+  // (o relatório geral usa paisagem — ver protocolo-print-orientation acima).
   let orient = document.getElementById('pc-print-orientation');
   if (!orient) {
     orient = document.createElement('style');
     orient.id = 'pc-print-orientation';
-    document.head.appendChild(orient);
   }
+  document.body.appendChild(orient);
   orient.textContent = '@media print { @page { size: A4 portrait; margin: 1.8cm 1.5cm; } }';
 
   showToast('🖨️ Abrindo impressão — escolha "Salvar como PDF" na janela do navegador');
   setTimeout(() => {
     window.print();
     pa.style.display = 'none';
+    document.body.classList.remove('print-protocolo');
     orient.remove();
   }, 700);
 }
