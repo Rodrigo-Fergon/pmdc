@@ -10700,13 +10700,17 @@ async function fazerLogout() {
   if (btnSairEl) btnSairEl.style.display = 'none';
   const extraEl = document.getElementById('status-user-info');
   if (extraEl) extraEl.innerHTML = '';
+  // Limpa o estado em memória do módulo Protocolo para que os dados do
+  // usuário que acabou de sair não fiquem visíveis/acessíveis para o
+  // próximo usuário que logar neste mesmo navegador.
+  if (typeof resetToGate === 'function') { try { resetToGate(); } catch(e) {} }
   voltarParaLogin();
 }
 
 function voltarParaLogin() {
   ['tela-menu','tela-ctc','tela-parecer','tela-modalidades','tela-submodalidades',
    'tela-despachos','tela-edicao-parecer','tela-usuarios','tela-log','tela-calculos','tela-trienio',
-   'tela-calculadoras','tela-calc-faltas'].forEach(id => {
+   'tela-calculadoras','tela-calc-faltas','tela-protocolo'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   document.getElementById('tela-login').style.display = 'flex';
@@ -13645,7 +13649,17 @@ function epImprimir() {
 // DATA & STATE
 // ════════════════════════════════════════
 const SEED = [];
-const LS_KEY = 'envio_processos_autosave_v2';
+const LS_KEY_BASE = 'envio_processos_autosave_v2';
+// Chave isolada por usuário logado — impede que o autosave/recuperação de
+// sessão de um usuário apareça para outro usuário que logue no mesmo navegador.
+function _protoUserSuffix() {
+  if (typeof _sessaoAtual !== 'undefined' && _sessaoAtual && (_sessaoAtual.matricula || _sessaoAtual.id)) {
+    return '_u' + (_sessaoAtual.matricula || _sessaoAtual.id);
+  }
+  return '_sem_sessao';
+}
+function _lsKey() { return LS_KEY_BASE + _protoUserSuffix(); }
+function _delKey() { return 'envio_deleted_v1' + _protoUserSuffix(); }
 
 
 let allData = [], filtered = [];
@@ -13823,24 +13837,24 @@ function entrar() {
     nextId = Math.max(...allData.map(r=>r.id), 0) + 1;
   }
   // Check for autosave — but only if it was saved AFTER the current data
-  const saved = localStorage.getItem(LS_KEY);
+  const saved = localStorage.getItem(_lsKey());
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
       if (parsed && parsed.length > 0) {
         // Only prompt recovery if autosave has MORE records or was explicitly edited
-        const savedAt = localStorage.getItem(LS_KEY + '_ts');
+        const savedAt = localStorage.getItem(_lsKey() + '_ts');
         document.getElementById('recover-overlay').style.display = 'flex';
         return;
       }
-    } catch(e) { localStorage.removeItem(LS_KEY); }
+    } catch(e) { localStorage.removeItem(_lsKey()); }
   }
   launchApp();
 }
 
 function recoverSession() {
   try {
-    const saved = JSON.parse(localStorage.getItem(LS_KEY));
+    const saved = JSON.parse(localStorage.getItem(_lsKey()));
     if (saved) { allData = saved; nextId = Math.max(...allData.map(r=>r.id), 0) + 1; }
   } catch(e) {}
   document.getElementById('recover-overlay').style.display = 'none';
@@ -13848,8 +13862,8 @@ function recoverSession() {
   launchApp();
 }
 function discardSession() {
-  localStorage.removeItem(LS_KEY);
-  localStorage.removeItem(LS_KEY + '_ts');
+  localStorage.removeItem(_lsKey());
+  localStorage.removeItem(_lsKey() + '_ts');
   document.getElementById('recover-overlay').style.display = 'none';
   // Re-load data from uploaded file or SEED (since we just discarded the session)
   if (uploadedData && uploadedData.length > 0) {
@@ -13908,7 +13922,7 @@ function closeExitModal() {
   exitCallback = null;
 }
 function exportAndExit() {
-  exportXlsx(); hasUnsavedChanges = false; localStorage.removeItem(LS_KEY);
+  exportXlsx(); hasUnsavedChanges = false; localStorage.removeItem(_lsKey());
   closeExitModal();
   if (exitCallback) { exitCallback(); exitCallback = null; }
 }
@@ -13917,9 +13931,9 @@ function exportAndExit() {
 // AUTOSAVE
 // ════════════════════════════════════════
 function autosave() {
-  localStorage.setItem(LS_KEY + '_ts', Date.now());
+  localStorage.setItem(_lsKey() + '_ts', Date.now());
   if (currentMode !== 'edicao') return;
-  try { localStorage.setItem(LS_KEY, JSON.stringify(allData)); hasUnsavedChanges = true; }
+  try { localStorage.setItem(_lsKey(), JSON.stringify(allData)); hasUnsavedChanges = true; }
   catch(e) {}
 }
 
@@ -14219,12 +14233,12 @@ function confirmDelete() {
   const rec = allData.find(x=>x.id===deleteTarget);
   if(rec){
     // Store in deletedRecords with timestamp for undo (24h)
-    const deletedList = JSON.parse(localStorage.getItem('envio_deleted_v1')||'[]');
+    const deletedList = JSON.parse(localStorage.getItem(_delKey())||'[]');
     deletedList.push({rec, deletedAt: Date.now()});
     // Keep only last 200 or entries within 24h
     const cutoff = Date.now() - 24*60*60*1000;
     const filtered24 = deletedList.filter(x => x.deletedAt >= cutoff);
-    localStorage.setItem('envio_deleted_v1', JSON.stringify(filtered24));
+    localStorage.setItem(_delKey(), JSON.stringify(filtered24));
   }
   allData=allData.filter(x=>x.id!==deleteTarget);
   deleteTarget=null;
@@ -14233,7 +14247,7 @@ function confirmDelete() {
   showToast('🗑️ Registro excluído. <a href="#" onclick="undoLastDelete();return false;" style="color:var(--golden);font-weight:700;text-decoration:underline;">Desfazer</a>', 6000);
 }
 function undoLastDelete() {
-  const deletedList = JSON.parse(localStorage.getItem('envio_deleted_v1')||'[]');
+  const deletedList = JSON.parse(localStorage.getItem(_delKey())||'[]');
   if(!deletedList.length){ showToast('Nenhum registro para restaurar.'); return; }
   const cutoff = Date.now() - 24*60*60*1000;
   const valid = deletedList.filter(x => x.deletedAt >= cutoff);
@@ -14243,7 +14257,7 @@ function undoLastDelete() {
   allData.unshift(last.rec);
   // Remove it from deleted list
   const newList = deletedList.filter(x => x !== last);
-  localStorage.setItem('envio_deleted_v1', JSON.stringify(newList));
+  localStorage.setItem(_delKey(), JSON.stringify(newList));
   initFilters(); applyFilters(); autosave();
   showToast('↩️ Registro restaurado com sucesso!');
 }
@@ -14378,7 +14392,7 @@ function exportXlsx() {
   const yyyy=now.getFullYear();
   XLSX.writeFile(wb, `ENVIOS até ${dd}-${mm}-${yyyy}.xlsx`);
   hasUnsavedChanges=false;
-  localStorage.removeItem(LS_KEY);
+  localStorage.removeItem(_lsKey());
   showToast('✅ Arquivo exportado com sucesso!');
 }
 
