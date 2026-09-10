@@ -7452,7 +7452,30 @@ function exportarXLS() {
   XLSX.utils.book_append_sheet(wb, ws,      'Certidão');
   XLSX.utils.book_append_sheet(wb, wsState, 'PMDC_DADOS');
 
-  XLSX.writeFile(wb, nomeArq);
+  /* Força a caixa "Salvar como" para todos os usuários (igual ao comportamento
+     já visto com a senha master), usando a File System Access API quando o
+     navegador suporta. Se não suportar, mantém o download automático de sempre. */
+  if (window.showSaveFilePicker) {
+    (async () => {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: nomeArq,
+          types: [{ description: 'Planilha Excel', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }]
+        });
+        const wbArray = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const writable = await handle.createWritable();
+        await writable.write(wbArray);
+        await writable.close();
+      } catch (e) {
+        if (e.name !== 'AbortError') {
+          console.error(e);
+          XLSX.writeFile(wb, nomeArq);
+        }
+      }
+    })();
+  } else {
+    XLSX.writeFile(wb, nomeArq);
+  }
 }
 
 function exportarHTML() { exportarXLS(); } /* compatibilidade */
