@@ -13907,6 +13907,15 @@ function resetToGate() {
   document.getElementById('app').style.display = 'none';
   document.getElementById('gate').style.display = 'flex';
   uploadedData = null;
+  // Limpa também os resíduos visuais da tela de upload (nome/qtd. do arquivo
+  // do usuário anterior), o campo de arquivo e o botão Entrar, para que o
+  // próximo usuário veja a tela de carregamento totalmente em branco.
+  const ust = document.getElementById('upload-status-text');
+  if (ust) ust.textContent = '';
+  const us = document.getElementById('upload-status');
+  if (us) us.classList.remove('show');
+  const fi = document.getElementById('protocolo-file-input');
+  if (fi) fi.value = '';
 }
 function showExitModal(cb) {
   exitCallback = cb;
