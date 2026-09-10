@@ -14422,10 +14422,39 @@ function exportXlsx() {
   const dd=String(now.getDate()).padStart(2,'0');
   const mm=String(now.getMonth()+1).padStart(2,'0');
   const yyyy=now.getFullYear();
-  XLSX.writeFile(wb, `ENVIOS até ${dd}-${mm}-${yyyy}.xlsx`);
-  hasUnsavedChanges=false;
-  localStorage.removeItem(_lsKey());
-  showToast('✅ Arquivo exportado com sucesso!');
+  const nomeArqProtocolo = `ENVIOS até ${dd}-${mm}-${yyyy}.xlsx`;
+
+  /* Força a caixa "Salvar como" para todos os usuários (igual ao comportamento
+     já visto com a senha master), usando a File System Access API quando o
+     navegador suporta. Se não suportar/permitir, mantém o download automático de sempre. */
+  const _finalizarExportProtocolo = () => {
+    hasUnsavedChanges=false;
+    localStorage.removeItem(_lsKey());
+    showToast('✅ Arquivo exportado com sucesso!');
+  };
+  if (window.showSaveFilePicker) {
+    (async () => {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: nomeArqProtocolo,
+          types: [{ description: 'Planilha Excel', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }]
+        });
+        const wbArray = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const writable = await handle.createWritable();
+        await writable.write(wbArray);
+        await writable.close();
+        _finalizarExportProtocolo();
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+        console.error(e);
+        XLSX.writeFile(wb, nomeArqProtocolo);
+        _finalizarExportProtocolo();
+      }
+    })();
+  } else {
+    XLSX.writeFile(wb, nomeArqProtocolo);
+    _finalizarExportProtocolo();
+  }
 }
 
 // ════════════════════════════════════════
