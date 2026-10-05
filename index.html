@@ -11982,7 +11982,7 @@ function trienioGerarLinhas() {
       linhas.push({ano:anoAtual, mes:_TRI_MESES[mesAtual-1], mesNum:mesAtual, decimo:false,
         dias:seg.dias, jus, vencimento:venc, percentual:seg.percentual, resultado, override:undefined});
     }
-    // Linha de Férias (Código 1201 ou 11201 — 1/3 de Férias): inserir após os segmentos do mês
+    // Linha de Férias (Códigos 12, 1201 ou 11201): inserir após os segmentos do mês
     const _keyFer = `${anoAtual}-${String(mesAtual).padStart(2,'0')}-ferias`;
     const _vencFer = _TRI.vencimentos[_keyFer] || 0;
     if (_vencFer > 0) {
@@ -12199,6 +12199,7 @@ function trienioExtrairCod02Normal(linhas, ano, textoPagina) {
     const ehCod02   = /^2$/.test(primStr) || /^\s*2\s+Vencimento/i.test(txt) || /^2\s*$/.test(primStr);
     const ehCod1201 = /^1201$/.test(primStr) || /^1201\s/.test(txt)
                    || /^11201$/.test(primStr) || /^11201\s/.test(txt)
+                   || /^12$/.test(primStr) || /^12\s/.test(txt)
                    || /1\/3\s*[Ff][eé]rias/i.test(txt)
                    || /[Ff][eé]rias\/[Cc]omplemento/i.test(txt);
     if (!ehCod02 && !ehCod1201) continue;
@@ -12241,8 +12242,10 @@ function trienioExtrairCod02Normal(linhas, ano, textoPagina) {
     for (const { mes, val } of mapeados) {
       if (mes && val > 0) {
         if (ehCod1201) {
-          // Código 1201 ou 11201 = 1/3 de Férias — chave especial
-          resultado[`${ano}-${String(mes).padStart(2,'0')}-ferias`] = val;
+          // Códigos 12, 1201 ou 11201 = Férias — chave especial
+          // Soma caso mais de um código de férias apareça no mesmo mês
+          const _kF = `${ano}-${String(mes).padStart(2,'0')}-ferias`;
+          resultado[_kF] = Math.round(((resultado[_kF] || 0) + val) * 100) / 100;
         } else {
           resultado[`${ano}-${String(mes).padStart(2,'0')}`] = val;
         }
@@ -12339,7 +12342,7 @@ function trienioRenderVencimentos() {
           style="width:100%;padding:.45rem .7rem;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.85rem;"
           onchange="_TRI.vencimentos['${key}']=parseFloat(this.value)||0">
         <div style="display:flex;align-items:center;gap:.4rem;margin-top:.3rem;">
-          <span style="font-size:.7rem;color:var(--accent3);white-space:nowrap;font-family:'Rajdhani',sans-serif;letter-spacing:.5px;">&#x1F334; Férias (1201/11201)</span>
+          <span style="font-size:.7rem;color:var(--accent3);white-space:nowrap;font-family:'Rajdhani',sans-serif;letter-spacing:.5px;">&#x1F334; Férias (12/1201/11201)</span>
           <input type="number" step="0.01" value="${valFer}" placeholder="0,00"
             style="flex:1;padding:.3rem .5rem;background:var(--bg3,var(--bg2));border:1px solid var(--accent3);border-radius:4px;color:var(--accent3);font-family:'Exo 2',sans-serif;font-size:.78rem;opacity:.85;"
             onchange="(_TRI.vencimentos['${keyFer}']=parseFloat(this.value)||0)">
