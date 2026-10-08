@@ -12128,6 +12128,13 @@ function abonoGerarLinhas() {
   return linhas;
 }
 
+/* Valor da linha = IPMDC do mês proporcionalizado pelos dias (IPMDC × JUS),
+   a menos que o usuário tenha digitado o valor diretamente (valorOverride). */
+function abonoValor(l) {
+  if (l.valorOverride !== undefined) return l.valorOverride;
+  return _abnArred((l.ipmdc || 0) * (l.jus || 0));
+}
+
 function abonoSig() {
   return JSON.stringify([_abnEl('abn-data-ini').value, _abnEl('abn-data-fim').value, _ABN.ipmdc]);
 }
@@ -12136,7 +12143,7 @@ function abonoSig() {
 function abonoSubtotais() {
   const calc = {};
   for (const l of _ABN.linhas) {
-    calc[l.ano] = (calc[l.ano] || 0) + _abnArred((l.ipmdc || 0) * (l.jus || 0));
+    calc[l.ano] = (calc[l.ano] || 0) + abonoValor(l);
   }
   const sub = {};
   for (const ano of Object.keys(calc)) {
@@ -12180,7 +12187,7 @@ function abonoGerarTabela() {
       ${cel(i, 'mes', l.mes, 'text-align:left;color:' + (l.decimo ? 'var(--accent3)' : 'var(--text2)') + ';')}
       ${cel(i, 'dias', l.dias, 'text-align:center;')}
       ${cel(i, 'jus', _abnFmtJus(l.jus), 'text-align:center;color:var(--text3);')}
-      ${cel(i, 'ipmdc', _abnFmt(l.ipmdc), 'text-align:right;color:var(--accent2);')}
+      ${cel(i, 'ipmdc', _abnFmt(abonoValor(l)), 'text-align:right;color:var(--accent2);')}
       ${subCell}
     </tr>`;
   }
@@ -12225,16 +12232,23 @@ function abonoEditarCampo(td) {
     const y = parseInt(txt);
     if (y > 1900) l.ano = y;
   } else if (campo === 'dias') {
-    if (!isNaN(n) && n > 0) { l.dias = n; l.jus = n / 30; }
+    if (!isNaN(n) && n > 0) { l.dias = n; l.jus = n / 30; delete l.valorOverride; }
   } else if (campo === 'jus') {
-    if (!isNaN(n) && n > 0) { l.jus = n / 100; l.dias = Math.round(l.jus * 30); }
+    if (!isNaN(n) && n > 0) { l.jus = n / 100; l.dias = Math.round(l.jus * 30); delete l.valorOverride; }
   } else if (campo === 'ipmdc') {
     if (!isNaN(n)) {
-      l.ipmdc = n;
-      // mantém a etapa 2 coerente com a edição feita na tabela
-      if (l.mesNum && l.ano) {
-        _ABN.ipmdc[_abnKey(l.ano, l.mesNum)] = n;
-        _ABN._sigLinhas = abonoSig();
+      if (Math.abs((l.jus || 0) - 1) < 1e-9) {
+        // mês cheio: o valor digitado é o próprio IPMDC do mês
+        l.ipmdc = n;
+        delete l.valorOverride;
+        // mantém a etapa 2 coerente com a edição feita na tabela
+        if (l.mesNum && l.ano) {
+          _ABN.ipmdc[_abnKey(l.ano, l.mesNum)] = n;
+          _ABN._sigLinhas = abonoSig();
+        }
+      } else {
+        // mês proporcional: o valor digitado substitui o valor proporcional da linha
+        l.valorOverride = n;
       }
     }
   }
@@ -12370,7 +12384,7 @@ function abonoGerarDocumento() {
       <td style="${td}">${escHtml(String(l.mes))}</td>
       <td style="${td}text-align:center;">${l.dias}</td>
       <td style="${td}text-align:center;">${_abnFmtJus(l.jus)}</td>
-      <td style="${td}text-align:right;">${_abnFmt(l.ipmdc)}</td>
+      <td style="${td}text-align:right;">${_abnFmt(abonoValor(l))}</td>
       <td style="${td}text-align:right;font-weight:${isUltimoAno ? 'bold' : 'normal'};">${isUltimoAno ? _abnFmt(sub[l.ano]) : ''}</td>
     </tr>`;
   }
