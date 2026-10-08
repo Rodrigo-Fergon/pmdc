@@ -12196,7 +12196,8 @@ function abonoGerarTabela() {
     aoRemoverLinha: (idx) => { _ABN.linhas.splice(idx, 1); }
   });
 
-  const mesesUnicos = new Set(_ABN.linhas.filter(l => !l.decimo).map(l => `${l.ano}-${l.mesNum}`));
+  // No Abono de Permanência o 13º Salário conta como um mês englobado
+  const mesesUnicos = new Set(_ABN.linhas.map(l => `${l.ano}-${l.mesNum}`));
   const badge = _abnEl('abn-badge-total');
   if (badge) badge.innerHTML = `<span style="font-family:'Share Tech Mono',monospace;font-size:.75rem;color:var(--text3);">Meses: ${mesesUnicos.size} · Total: <span style="color:var(--accent2);">${_abnFmt(total)}</span></span>`;
 }
@@ -12346,7 +12347,7 @@ function abonoGerarDocumento() {
   const periodoTexto = `${_abnFmtData(iniV)} a ${_abnFmtData(fimV)}`;
   const sufixo13 = _ABN.linhas.some(l => l.decimo) ? ' + 13º Salário' : '';
   const { sub, total } = abonoSubtotais();
-  const mesesUnicos = new Set(_ABN.linhas.filter(l => !l.decimo).map(l => `${l.ano}-${l.mesNum}`));
+  const mesesUnicos = new Set(_ABN.linhas.map(l => `${l.ano}-${l.mesNum}`));
 
   // Assinatura (mesma regra do documento de triênio)
   const _nomesCustom = {'146189':'Rodrigo Gonçalves'};
