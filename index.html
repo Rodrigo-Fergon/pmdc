@@ -2980,11 +2980,13 @@ table.cq-tabela td.cq-tabela-cel-sel, table.cq-tabela th.cq-tabela-cel-sel{box-s
       <div style="display:flex;gap:.8rem;margin-bottom:1rem;align-items:center;flex-wrap:wrap;">
         <button class="btn btn-gold" onclick="trienioImprimir()">🖨️ Imprimir</button>
         <button class="btn btn-success" onclick="trienioSalvarPDF()">📄 Salvar PDF</button>
+        <button class="btn btn-outline" onclick="trienioRestaurarDocumento()" title="Descarta as edições feitas diretamente no documento">↺ Restaurar original</button>
+        <div style="font-size:.74rem;color:var(--text3);">✎ Clique em qualquer parte do documento para editar</div>
         <div id="tri-nome-arquivo" style="font-size:.78rem;color:var(--text3);font-family:'Share Tech Mono',monospace;"></div>
       </div>
       <div id="tri-alerta-doc" style="display:none;margin-bottom:.8rem;" class="alert alert-err"></div>
       <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);">
-        <div id="tri-documento-final" style="padding:1.2cm 1.6cm;font-family:'Times New Roman',serif;font-size:11pt;color:#000;line-height:1.5;min-height:400px;"></div>
+        <div id="tri-documento-final" contenteditable="true" spellcheck="false" oninput="_TRI._docEditado=true" style="outline:none;padding:1.2cm 1.6cm;font-family:'Times New Roman',serif;font-size:11pt;color:#000;line-height:1.5;min-height:400px;"></div>
       </div>
       <div style="display:flex;gap:.8rem;margin-top:1rem;">
         <button class="btn btn-outline" onclick="trienioIrEtapa(3)">← Voltar</button>
@@ -11810,6 +11812,8 @@ function trienioAbrir() {
   _TRI.vencimentos = {};
   _TRI.linhas      = [];
   _TRI._sigLinhas  = null;
+  _TRI._docEditado = false;
+  _TRI._docSig     = null;
   ['tela-menu','tela-calculos'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display='none'; });
   const tela = document.getElementById('tela-trienio');
   if (tela) tela.style.display = 'block';
@@ -12514,6 +12518,15 @@ function trienioGerarDocumento() {
   const dataDoc = document.getElementById('tri-data-doc').value.trim();
   const observacao = document.getElementById('tri-observacao').value.trim();
 
+  // Preserva edições feitas diretamente no documento enquanto os dados de origem não mudarem
+  const _sigDoc = JSON.stringify([
+    _TRI.linhas, _TRI._subtotaisPDF, _TRI.modoAlterar, _TRI.trienios,
+    nome, mat, proc, fls, dest, setorEncam, artigoEncam, dataDoc, observacao,
+    (document.getElementById('tri-mes-automacao')||{}).value,
+    (document.getElementById('tri-ano-automacao')||{}).value
+  ]);
+  if (_TRI._docEditado && _TRI._docSig === _sigDoc) return;
+
   const trienios = trienioOrdenados();
   const {y:anoIniY, m:mesIniM, d:diaIniD} = trienios.length ? triParseDateLocal(trienios[0].dataConcessao) : {y:0,m:0,d:0};
   const mesA    = parseInt(document.getElementById('tri-mes-automacao').value);
@@ -12654,6 +12667,8 @@ function trienioGerarDocumento() {
     </div>`;
 
   document.getElementById('tri-documento-final').innerHTML = docHtml;
+  _TRI._docSig = _sigDoc;
+  _TRI._docEditado = false;
 
   // Alerta divergência
   const alertDoc = document.getElementById('tri-alerta-doc');
@@ -12675,6 +12690,12 @@ function trienioGerarDocumento() {
   _TRI._nomeArquivo = nomeArq;
   const nomeArqEl = document.getElementById('tri-nome-arquivo');
   if(nomeArqEl) nomeArqEl.textContent = nomeArq;
+}
+
+function trienioRestaurarDocumento() {
+  _TRI._docEditado = false;
+  _TRI._docSig = null;
+  trienioGerarDocumento();
 }
 
 function trienioImprimir() {
