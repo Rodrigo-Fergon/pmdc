@@ -11809,6 +11809,7 @@ function trienioAbrir() {
   _TRI.trienios    = [];
   _TRI.vencimentos = {};
   _TRI.linhas      = [];
+  _TRI._sigLinhas  = null;
   ['tela-menu','tela-calculos'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display='none'; });
   const tela = document.getElementById('tela-trienio');
   if (tela) tela.style.display = 'block';
@@ -12368,7 +12369,19 @@ function trienioRenderVencimentos() {
 function trienioGerarTabela() {
   // No modo alterar: linhas já foram carregadas diretamente do PDF
   // No modo novo: recalcula a partir dos triênios e vencimentos
-  if (!_TRI.modoAlterar || !_TRI.linhas || _TRI.linhas.length === 0) {
+  // Só regenera quando os dados de entrada (triênios, vencimentos, mês de automação)
+  // mudaram — assim as edições manuais na tabela (dias, %, valores) são preservadas.
+  if (!_TRI.modoAlterar) {
+    const _sig = JSON.stringify([
+      _TRI.trienios, _TRI.vencimentos,
+      (document.getElementById('tri-mes-automacao')||{}).value,
+      (document.getElementById('tri-ano-automacao')||{}).value
+    ]);
+    if (!_TRI.linhas || _TRI.linhas.length === 0 || _TRI._sigLinhas !== _sig) {
+      _TRI.linhas = trienioGerarLinhas();
+      _TRI._sigLinhas = _sig;
+    }
+  } else if (!_TRI.linhas || _TRI.linhas.length === 0) {
     _TRI.linhas = trienioGerarLinhas();
   }
   const tbody = document.getElementById('tri-tabela-body');
