@@ -585,6 +585,26 @@ table.cq-tabela td.cq-tabela-cel-sel, table.cq-tabela th.cq-tabela-cel-sel{box-s
 </div>
 
 <!-- SUBMENU: DIFERENÇA DE TRIÊNIO -->
+<div id="submenu-abono" class="modal-overlay" style="z-index:900;">
+  <div class="modal" style="max-width:520px;">
+    <div class="corner corner-tl"></div><div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div><div class="corner corner-br"></div>
+    <h3>💰 DIFERENÇA DE ABONO DE PERMANÊNCIA — O que deseja fazer?</h3>
+    <p>Escolha se deseja iniciar um novo cálculo ou reabrir e alterar um cálculo já gerado por este sistema.</p>
+    <div style="display:flex;flex-direction:column;gap:.9rem;margin-top:.5rem;">
+      <button class="btn btn-primary" onclick="abonoSubmenuNovo()" style="width:100%;font-size:1rem;padding:.8rem 1rem;">
+        ✨ Novo Cálculo de Diferença de Abono de Permanência
+        <span style="display:block;font-size:.75rem;font-weight:400;margin-top:2px;opacity:.8;">Iniciar do zero, informando os dados e fazendo upload das fichas PDF</span>
+      </button>
+      <button class="btn btn-gold" disabled style="width:100%;font-size:1rem;padding:.8rem 1rem;opacity:.45;cursor:not-allowed;">
+        🔄 Alterar Cálculo Existente
+        <span style="display:block;font-size:.75rem;font-weight:400;margin-top:2px;opacity:.8;">Em breve para o Abono de Permanência</span>
+      </button>
+      <button class="btn btn-outline" onclick="abonoFecharSubmenu()" style="width:100%;">← Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <div id="submenu-trienio" class="modal-overlay" style="z-index:900;">
   <div class="modal" style="max-width:520px;">
     <div class="corner corner-tl"></div><div class="corner corner-tr"></div>
@@ -1350,7 +1370,7 @@ table.cq-tabela td.cq-tabela-cel-sel, table.cq-tabela th.cq-tabela-cel-sel{box-s
           <div class="btn-inner">
             <span class="btn-icon">💰</span>
             <div class="btn-label" style="font-size:1rem;">Diferença de Abono de Permanência</div>
-            <span class="btn-tag" style="border-color:var(--accent3);color:var(--accent3);">EM BREVE</span>
+            <span class="btn-tag">■ ATIVO</span>
           </div>
         </div>
 
@@ -2990,6 +3010,165 @@ table.cq-tabela td.cq-tabela-cel-sel, table.cq-tabela th.cq-tabela-cel-sel{box-s
       </div>
       <div style="display:flex;gap:.8rem;margin-top:1rem;">
         <button class="btn btn-outline" onclick="trienioIrEtapa(3)">← Voltar</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     TELA: DIFERENÇA DE ABONO DE PERMANÊNCIA
+══════════════════════════════════════════════════════ -->
+<div id="tela-abono" style="display:none;position:relative;z-index:1;min-height:100vh;">
+  <div class="top-bar">
+    <button class="back-btn" onclick="abonoVoltar()">← CÁLCULOS</button>
+    <span class="tb-title">💰 DIFERENÇA DE ABONO DE PERMANÊNCIA</span>
+    <div class="tb-steps" style="margin-left:auto;">
+      <button class="tb-step" id="abn-step-btn-1" onclick="abonoIrEtapa(1)">1 · DADOS</button>
+      <button class="tb-step" id="abn-step-btn-2" onclick="abonoIrEtapa(2)">2 · IPMDC</button>
+      <button class="tb-step" id="abn-step-btn-3" onclick="abonoIrEtapa(3)">3 · TABELA</button>
+      <button class="tb-step" id="abn-step-btn-4" onclick="abonoIrEtapa(4)">4 · DOCUMENTO</button>
+    </div>
+  </div>
+  <div class="ctc-body" style="max-width:980px;">
+
+    <!-- ETAPA 1: DADOS -->
+    <div id="abn-etapa-1">
+      <div class="card">
+        <div class="card-title">📋 Cabeçalho do Documento</div>
+        <div class="dados-grid">
+          <div class="field field-opt"><label>Nº do Processo</label><input type="text" id="abn-processo" placeholder="Ex: 52159/2016"></div>
+          <div class="field field-opt"><label>Folha (Fls)</label><input type="text" id="abn-folha" placeholder="Ex: 08"></div>
+          <div class="field"><label>Destinatário</label><input type="text" id="abn-destinatario" value="Sr. Chefe"></div>
+          <div class="field"><label>Data do Documento</label><input type="text" id="abn-data-doc" placeholder="DD/MM/AAAA"></div>
+          <div class="field"><label>Setor (encaminhamento p/ pagamento)</label><input type="text" id="abn-setor-encaminhamento" value="DAA" placeholder="Ex: DAA"></div>
+          <div class="field"><label>Artigo</label><select id="abn-setor-artigo"><option value="À" selected>À (fem.)</option><option value="Ao">Ao (masc.)</option></select></div>
+          <div class="field full"><label>Nome do(a) Servidor(a)</label><input type="text" id="abn-nome-servidor" placeholder="Nome completo em maiúsculas" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
+          <div class="field full" style="display:grid;grid-template-columns:1fr 2fr;gap:.75rem 1.5rem;">
+            <div class="field" style="margin:0;"><label>Matrícula</label><input type="text" id="abn-matricula" placeholder="Ex: 10468-6"></div>
+            <div class="field" style="margin:0;"><label>Observação</label><textarea id="abn-observacao" rows="1" placeholder="Opcional"></textarea></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📆 Período de Cálculo</div>
+        <div class="dados-grid">
+          <div class="field">
+            <label>Data de Início do Período</label>
+            <input type="date" id="abn-data-ini" oninput="abonoAtualizarPeriodo()" onchange="abonoAtualizarPeriodo()">
+          </div>
+          <div class="field">
+            <label>Data de Fim do Período</label>
+            <input type="date" id="abn-data-fim" oninput="abonoAtualizarPeriodo()" onchange="abonoAtualizarPeriodo()">
+          </div>
+        </div>
+        <div id="abn-periodo-preview" style="display:none;margin-top:.8rem;" class="alert alert-ok"></div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;">
+        <button class="btn btn-primary" onclick="abonoProximaEtapa(1)">Próximo: IPMDC →</button>
+      </div>
+    </div>
+
+    <!-- ETAPA 2: IPMDC -->
+    <div id="abn-etapa-2" style="display:none;">
+
+      <div class="card">
+        <div class="card-title">&#x1F4C4; Importar Fichas Financeiras (PDF)</div>
+        <div class="alert alert-info" style="margin-bottom:1rem;">
+          &#x2139;&#xFE0F; Envie as fichas financeiras em PDF. A ficha <strong>sem décimo terceiro</strong> fornece o IPMDC (código 164) de cada mês; a ficha <strong>com décimo terceiro</strong> fornece o IPMDC do 13º Salário (códigos 164 e/ou 177). É possível selecionar mais de um PDF de cada tipo.
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:.5rem;">
+          <div>
+            <div style="font-size:.72rem;color:var(--text3);font-family:'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:.5rem;">Ficha SEM Décimo Terceiro</div>
+            <div id="abn-drop-normal" class="upload-zone" style="padding:1.2rem;cursor:pointer;"
+              onclick="document.getElementById('abn-pdf-normal').click()"
+              ondragover="event.preventDefault();this.classList.add('drag')"
+              ondragleave="this.classList.remove('drag')"
+              ondrop="event.preventDefault();this.classList.remove('drag');abonoLerPDFs(event.dataTransfer.files,'normal')">
+              <div class="uz-icon" style="font-size:1.8rem;">&#x1F4C4;</div>
+              <p style="font-size:.8rem;">Clique ou arraste o PDF<br><strong>sem décimo terceiro</strong><br><span style="font-size:.72rem;opacity:.7;">(IPMDC de cada mês)</span></p>
+            </div>
+            <input type="file" id="abn-pdf-normal" accept=".pdf" multiple style="display:none"
+              onchange="abonoLerPDFs(this.files,'normal');this.value=''">
+            <div id="abn-status-normal" style="margin-top:.4rem;font-size:.75rem;font-family:'Share Tech Mono',monospace;color:var(--text3);min-height:1.2rem;"></div>
+          </div>
+          <div>
+            <div style="font-size:.72rem;color:var(--text3);font-family:'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:.5rem;">Ficha COM Décimo Terceiro</div>
+            <div id="abn-drop-decimo" class="upload-zone" style="padding:1.2rem;cursor:pointer;"
+              onclick="document.getElementById('abn-pdf-decimo').click()"
+              ondragover="event.preventDefault();this.classList.add('drag')"
+              ondragleave="this.classList.remove('drag')"
+              ondrop="event.preventDefault();this.classList.remove('drag');abonoLerPDFs(event.dataTransfer.files,'decimo')">
+              <div class="uz-icon" style="font-size:1.8rem;">&#x1F4CB;</div>
+              <p style="font-size:.8rem;">Clique ou arraste o PDF<br><strong>com décimo terceiro</strong><br><span style="font-size:.72rem;opacity:.7;">(IPMDC do 13º Salário)</span></p>
+            </div>
+            <input type="file" id="abn-pdf-decimo" accept=".pdf" multiple style="display:none"
+              onchange="abonoLerPDFs(this.files,'decimo');this.value=''">
+            <div id="abn-status-decimo" style="margin-top:.4rem;font-size:.75rem;font-family:'Share Tech Mono',monospace;color:var(--text3);min-height:1.2rem;"></div>
+          </div>
+        </div>
+        <div id="abn-import-log" style="display:none;" class="alert alert-ok"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">&#x270F;&#xFE0F; Valores do IPMDC (editável)</div>
+        <div class="alert alert-info" style="margin-bottom:1rem;">
+          &#x2139;&#xFE0F; Valores preenchidos automaticamente pelos PDFs. Confira e corrija se necessário. Meses sem valor ficam em branco e podem ser digitados manualmente.
+        </div>
+        <div id="abn-campos-ipmdc"></div>
+      </div>
+
+      <div style="display:flex;gap:.8rem;justify-content:space-between;">
+        <button class="btn btn-outline" onclick="abonoIrEtapa(1)">&#x2190; Voltar</button>
+        <button class="btn btn-primary" onclick="abonoProximaEtapa(2)">Próximo: Tabela &#x2192;</button>
+      </div>
+    </div>
+
+    <!-- ETAPA 3: TABELA -->
+    <div id="abn-etapa-3" style="display:none;">
+      <div class="card">
+        <div class="card-title" style="justify-content:space-between;">
+          <span>📊 Tabela de Cálculo</span>
+          <span id="abn-badge-total" style="font-size:.8rem;"></span>
+        </div>
+        <div class="tabela-wrap">
+          <table class="rev" id="abn-tabela-calc">
+            <thead>
+              <tr>
+                <th style="min-width:52px;">ANO</th>
+                <th style="min-width:100px;">MÊS</th>
+                <th style="min-width:46px;">DIAS</th>
+                <th style="min-width:64px;">JUS</th>
+                <th style="min-width:100px;">IPMDC</th>
+                <th style="min-width:100px;">SUBTOTAIS</th>
+              </tr>
+            </thead>
+            <tbody id="abn-tabela-body"></tbody>
+          </table>
+        </div>
+      </div>
+      <div style="display:flex;gap:.8rem;justify-content:space-between;">
+        <button class="btn btn-outline" onclick="abonoIrEtapa(2)">← Voltar</button>
+        <button class="btn btn-primary" onclick="abonoProximaEtapa(3)">Próximo: Documento →</button>
+      </div>
+    </div>
+
+    <!-- ETAPA 4: DOCUMENTO FINAL -->
+    <div id="abn-etapa-4" style="display:none;">
+      <div style="display:flex;gap:.8rem;margin-bottom:1rem;align-items:center;flex-wrap:wrap;">
+        <button class="btn btn-gold" onclick="abonoImprimir()">🖨️ Imprimir</button>
+        <button class="btn btn-success" onclick="abonoSalvarPDF()">📄 Salvar PDF</button>
+        <button class="btn btn-outline" onclick="abonoRestaurarDocumento()" title="Descarta as edições feitas diretamente no documento">↺ Restaurar original</button>
+        <div style="font-size:.74rem;color:var(--text3);">✎ Clique em qualquer parte do documento para editar</div>
+        <div id="abn-nome-arquivo" style="font-size:.78rem;color:var(--text3);font-family:'Share Tech Mono',monospace;"></div>
+      </div>
+      <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);">
+        <div id="abn-documento-final" contenteditable="true" spellcheck="false" oninput="_ABN._docEditado=true" style="outline:none;padding:1.2cm 1.6cm;font-family:'Times New Roman',serif;font-size:11pt;color:#000;line-height:1.5;min-height:400px;"></div>
+      </div>
+      <div style="display:flex;gap:.8rem;margin-top:1rem;">
+        <button class="btn btn-outline" onclick="abonoIrEtapa(3)">← Voltar</button>
       </div>
     </div>
 
@@ -4692,7 +4871,7 @@ function voltarEditarCertidao() {
 function voltarMenu() {
   S.modoAlterar = false;
   ['tela-ctc','tela-parecer','tela-modalidades','tela-submodalidades',
-   'tela-despachos','tela-edicao-parecer','tela-usuarios','tela-log','tela-calculos','tela-trienio','tela-consulta',
+   'tela-despachos','tela-edicao-parecer','tela-usuarios','tela-log','tela-calculos','tela-trienio','tela-abono','tela-consulta',
    'tela-calculadoras','tela-calc-faltas'].forEach(id => {
     const el = document.getElementById(id); if(el) el.style.display = 'none';
   });
@@ -10734,7 +10913,7 @@ async function fazerLogout() {
 
 function voltarParaLogin() {
   ['tela-menu','tela-ctc','tela-parecer','tela-modalidades','tela-submodalidades',
-   'tela-despachos','tela-edicao-parecer','tela-usuarios','tela-log','tela-calculos','tela-trienio',
+   'tela-despachos','tela-edicao-parecer','tela-usuarios','tela-log','tela-calculos','tela-trienio','tela-abono',
    'tela-calculadoras','tela-calc-faltas','tela-protocolo'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
@@ -10764,7 +10943,7 @@ async function confirmarTrocaSenha() {
 /* ── voltarMenu ── */
 function voltarMenuMaster() {
   ['tela-ctc','tela-parecer','tela-modalidades','tela-submodalidades',
-   'tela-despachos','tela-edicao-parecer','tela-usuarios','tela-log','tela-chamados','tela-calculos','tela-trienio',
+   'tela-despachos','tela-edicao-parecer','tela-usuarios','tela-log','tela-chamados','tela-calculos','tela-trienio','tela-abono',
    'tela-calculadoras','tela-calc-faltas'].forEach(id => {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
@@ -11708,6 +11887,10 @@ function abrirCalcItem(tipo) {
     document.getElementById('submenu-trienio').classList.add('open');
     return;
   }
+  if (tipo === 'abono') {
+    document.getElementById('submenu-abono').classList.add('open');
+    return;
+  }
   const nome = _calcNomes[tipo] || tipo;
   alert(`⚙️ Funcionalidade "${nome}" em desenvolvimento.\n\nEm breve disponível neste módulo.`);
 }
@@ -11790,6 +11973,520 @@ function calcFaltasAtualizar() {
   document.getElementById('cf-out-56').textContent    = 'R$ ' + fmtBR(cod56);
   document.getElementById('cf-out-57').textContent    = 'R$ ' + fmtBR(cod57);
   document.getElementById('cf-out-total').textContent = 'R$ ' + fmtBR(total);
+}
+
+/* ══════════════════════════════════════════════════════════
+   MÓDULO: DIFERENÇA DE ABONO DE PERMANÊNCIA
+   Mesma dinâmica da Diferença de Triênio, porém:
+   • período de início/fim informado manualmente (sem triênios);
+   • valor coletado nas fichas = IPMDC de cada mês (cód. 164) e, no
+     13º, cód. 164 e/ou 177 — reaproveita parseFichaPages /
+     parseFichaPagesDec13 (mesmos leitores usados no módulo CTC);
+   • tabela: ANO · MÊS · DIAS · JUS · IPMDC · SUBTOTAIS
+     (subtotal do ano = soma de IPMDC × JUS de cada linha).
+══════════════════════════════════════════════════════════ */
+const _ABN = {
+  ipmdc: {},            // {"AAAA-MM": valor, "AAAA-13": valor}
+  linhas: [],
+  etapaAtual: 1,
+  _sigLinhas: null,
+  _subtotaisEdit: {},   // {ano: valor} — subtotal digitado manualmente
+  _docEditado: false,
+  _docSig: null,
+  _nomeArquivo: '',
+  _log: [],
+};
+const _abnEl  = id => document.getElementById(id);
+const _abnFmt = v => (typeof v === 'number' && !isNaN(v))
+  ? v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '0,00';
+const _abnFmtJus = v => ((v||0) * 100).toFixed(2).replace('.', ',') + '%';
+const _abnArred  = v => Math.round((v || 0) * 100) / 100;
+const _abnKey    = (ano, mesNum) => `${ano}-${mesNum === 13 ? '13' : String(mesNum).padStart(2, '0')}`;
+const _abnFmtData = iso => {
+  const p = triParseDateLocal(iso);
+  return p.y ? `${String(p.d).padStart(2,'0')}/${String(p.m).padStart(2,'0')}/${p.y}` : '';
+};
+
+function abonoAbrir() {
+  _ABN.ipmdc = {}; _ABN.linhas = []; _ABN._sigLinhas = null; _ABN._subtotaisEdit = {};
+  _ABN._docEditado = false; _ABN._docSig = null; _ABN._log = [];
+  ['tela-menu', 'tela-calculos'].forEach(id => { const el = _abnEl(id); if (el) el.style.display = 'none'; });
+  const tela = _abnEl('tela-abono');
+  if (tela) tela.style.display = 'block';
+  // Campos em branco / valores padrão
+  ['abn-processo','abn-folha','abn-nome-servidor','abn-matricula','abn-observacao','abn-data-ini','abn-data-fim']
+    .forEach(id => { const el = _abnEl(id); if (el) el.value = ''; });
+  _abnEl('abn-destinatario').value = 'Sr. Chefe';
+  _abnEl('abn-setor-encaminhamento').value = 'DAA';
+  _abnEl('abn-setor-artigo').value = 'À';
+  const hoje = new Date();
+  _abnEl('abn-data-doc').value =
+    `${String(hoje.getDate()).padStart(2,'0')}/${String(hoje.getMonth()+1).padStart(2,'0')}/${hoje.getFullYear()}`;
+  const prev = _abnEl('abn-periodo-preview'); if (prev) prev.style.display = 'none';
+  ['abn-status-normal','abn-status-decimo'].forEach(id => { const el = _abnEl(id); if (el) el.innerHTML = ''; });
+  const lg = _abnEl('abn-import-log'); if (lg) { lg.style.display = 'none'; lg.innerHTML = ''; }
+  const cp = _abnEl('abn-campos-ipmdc'); if (cp) cp.innerHTML = '';
+  abonoIrEtapa(1);
+}
+
+function abonoVoltar() {
+  _abnEl('tela-abono').style.display = 'none';
+  _abnEl('tela-calculos').style.display = 'block';
+}
+
+function abonoSubmenuNovo() {
+  _abnEl('submenu-abono').classList.remove('open');
+  abonoAbrir();
+}
+function abonoFecharSubmenu() {
+  _abnEl('submenu-abono').classList.remove('open');
+}
+
+function abonoPeriodoValido() {
+  const ini = triParseDateLocal(_abnEl('abn-data-ini').value);
+  const fim = triParseDateLocal(_abnEl('abn-data-fim').value);
+  if (!ini.y || !fim.y) return false;
+  return (fim.y*10000 + fim.m*100 + fim.d) >= (ini.y*10000 + ini.m*100 + ini.d);
+}
+
+function abonoAtualizarPeriodo() {
+  const el = _abnEl('abn-periodo-preview');
+  if (!el) return;
+  const iniV = _abnEl('abn-data-ini').value, fimV = _abnEl('abn-data-fim').value;
+  const ini = triParseDateLocal(iniV), fim = triParseDateLocal(fimV);
+  if (!ini.y || !fim.y) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  if (!abonoPeriodoValido()) {
+    el.className = 'alert alert-err';
+    el.innerHTML = '⚠ A data de fim não pode ser anterior à data de início.';
+    return;
+  }
+  const meses = (fim.y - ini.y) * 12 + (fim.m - ini.m) + 1;
+  el.className = 'alert alert-ok';
+  el.innerHTML = `✓ Período calculado: <strong>${_abnFmtData(iniV)}</strong> a <strong>${_abnFmtData(fimV)}</strong> · ${meses} mês(es)`;
+}
+
+function abonoValidarDados() {
+  const nome = _abnEl('abn-nome-servidor').value.trim();
+  const mat  = _abnEl('abn-matricula').value.trim();
+  if (!nome) { alert('Informe o nome do servidor.'); return false; }
+  if (!mat)  { alert('Informe a matrícula.'); return false; }
+  const ini = triParseDateLocal(_abnEl('abn-data-ini').value);
+  const fim = triParseDateLocal(_abnEl('abn-data-fim').value);
+  if (!ini.y) { alert('Informe a data de início do período.'); return false; }
+  if (!fim.y) { alert('Informe a data de fim do período.'); return false; }
+  if (!abonoPeriodoValido()) { alert('A data de fim não pode ser anterior à data de início.'); return false; }
+  return true;
+}
+
+function abonoIrEtapa(n) {
+  if (n >= 2 && !abonoPeriodoValido()) {
+    alert('Preencha o período de cálculo (início e fim) na etapa 1.');
+    n = 1;
+  }
+  for (let i = 1; i <= 4; i++) {
+    const el = _abnEl('abn-etapa-' + i);
+    if (el) el.style.display = i === n ? 'block' : 'none';
+    const btn = _abnEl('abn-step-btn-' + i);
+    if (btn) btn.className = 'tb-step' + (i === n ? ' active' : i < n ? ' done' : '');
+  }
+  _ABN.etapaAtual = n;
+  if (n === 2) abonoRenderIpmdc();
+  if (n === 3) abonoGerarTabela();
+  if (n === 4) abonoGerarDocumento();
+}
+
+function abonoProximaEtapa(atual) {
+  if (atual === 1 && !abonoValidarDados()) return;
+  abonoIrEtapa(atual + 1);
+}
+
+/* ── Linhas da tabela (uma por mês do período + 13º de cada ano que contém dezembro) ── */
+function abonoGerarLinhas() {
+  const ini = triParseDateLocal(_abnEl('abn-data-ini').value);
+  const fim = triParseDateLocal(_abnEl('abn-data-fim').value);
+  if (!ini.y || !fim.y) return [];
+  const linhas = [];
+  let a = ini.y, m = ini.m;
+  while (a < fim.y || (a === fim.y && m <= fim.m)) {
+    const ultimoDia = new Date(a, m, 0).getDate();
+    const dIni = (a === ini.y && m === ini.m) ? Math.min(ini.d, 30) : 1;
+    const dFim = (a === fim.y && m === fim.m) ? (fim.d >= ultimoDia ? 30 : fim.d) : 30;
+    const dias = Math.max(1, dFim - dIni + 1);
+    linhas.push({
+      ano: a, mes: _TRI_MESES[m-1], mesNum: m, decimo: false,
+      dias, jus: dias / 30, ipmdc: _ABN.ipmdc[_abnKey(a, m)] || 0
+    });
+    if (m === 12 && (a < fim.y || (a === fim.y && fim.m === 12))) {
+      linhas.push({
+        ano: a, mes: '*13º Salário', mesNum: 13, decimo: true,
+        dias: 30, jus: 1, ipmdc: _ABN.ipmdc[_abnKey(a, 13)] || 0
+      });
+    }
+    m++; if (m > 12) { m = 1; a++; }
+  }
+  return linhas;
+}
+
+function abonoSig() {
+  return JSON.stringify([_abnEl('abn-data-ini').value, _abnEl('abn-data-fim').value, _ABN.ipmdc]);
+}
+
+/* Subtotal por ano (soma de IPMDC × JUS, por linha arredondada ao centavo) e total */
+function abonoSubtotais() {
+  const calc = {};
+  for (const l of _ABN.linhas) {
+    calc[l.ano] = (calc[l.ano] || 0) + _abnArred((l.ipmdc || 0) * (l.jus || 0));
+  }
+  const sub = {};
+  for (const ano of Object.keys(calc)) {
+    const ed = _ABN._subtotaisEdit[ano];
+    sub[ano] = (ed !== undefined) ? ed : _abnArred(calc[ano]);
+  }
+  const total = _abnArred(Object.values(sub).reduce((s, v) => s + v, 0));
+  return { sub, total };
+}
+
+function abonoGerarTabela() {
+  const sig = abonoSig();
+  if (!_ABN.linhas.length || _ABN._sigLinhas !== sig) {
+    _ABN.linhas = abonoGerarLinhas();
+    _ABN._sigLinhas = sig;
+    _ABN._subtotaisEdit = {};
+  }
+  const tbody = _abnEl('abn-tabela-body');
+  if (!tbody) return;
+  const { sub, total } = abonoSubtotais();
+
+  const cel = (i, campo, txt, estilo) =>
+    `<td contenteditable="true" data-idx="${i}" data-campo="${campo}" onblur="abonoEditarCampo(this)" style="${estilo}">${txt}</td>`;
+
+  let html = '';
+  let anoAnterior = null;
+  for (let i = 0; i < _ABN.linhas.length; i++) {
+    const l = _ABN.linhas[i];
+    const prox = _ABN.linhas[i + 1];
+    const isNovoAno = l.ano !== anoAnterior;
+    const isUltimoAno = !prox || prox.ano !== l.ano;
+    if (isNovoAno) anoAnterior = l.ano;
+    const anoCell = isNovoAno
+      ? cel(i, 'ano', l.ano, 'font-weight:700;color:var(--accent3);vertical-align:top;text-align:center;')
+      : '<td></td>';
+    const subCell = isUltimoAno
+      ? cel(i, 'subtotal', _abnFmt(sub[l.ano]), 'font-weight:700;color:var(--accent3);text-align:right;')
+      : '<td></td>';
+    html += `<tr class="${l.decimo ? 'dec13' : ''}">
+      ${anoCell}
+      ${cel(i, 'mes', l.mes, 'text-align:left;color:' + (l.decimo ? 'var(--accent3)' : 'var(--text2)') + ';')}
+      ${cel(i, 'dias', l.dias, 'text-align:center;')}
+      ${cel(i, 'jus', _abnFmtJus(l.jus), 'text-align:center;color:var(--text3);')}
+      ${cel(i, 'ipmdc', _abnFmt(l.ipmdc), 'text-align:right;color:var(--accent2);')}
+      ${subCell}
+    </tr>`;
+  }
+  html += `<tr class="total-row">
+    <td colspan="5" style="text-align:center;font-weight:700;letter-spacing:1px;color:var(--accent);">TOTAL A PAGAR</td>
+    <td style="text-align:right;font-weight:700;color:var(--accent2);">${_abnFmt(total)}</td>
+  </tr>`;
+  tbody.innerHTML = html;
+  TabelaExcel.ativar(tbody, {
+    aoAdicionarLinha: (tr, idx) => {
+      _ABN.linhas.splice(idx, 0, { ano:'', mes:'', mesNum:0, decimo:false, dias:0, jus:0, ipmdc:0 });
+    },
+    aoRemoverLinha: (idx) => { _ABN.linhas.splice(idx, 1); }
+  });
+
+  const mesesUnicos = new Set(_ABN.linhas.filter(l => !l.decimo).map(l => `${l.ano}-${l.mesNum}`));
+  const badge = _abnEl('abn-badge-total');
+  if (badge) badge.innerHTML = `<span style="font-family:'Share Tech Mono',monospace;font-size:.75rem;color:var(--text3);">Meses: ${mesesUnicos.size} · Total: <span style="color:var(--accent2);">${_abnFmt(total)}</span></span>`;
+}
+
+/* Edição de célula da tabela — o índice é lido da posição da linha no DOM,
+   o que continua correto mesmo após inserir/remover linhas pelo menu da tabela. */
+function abonoEditarCampo(td) {
+  const tr = td.closest('tr');
+  const tbody = tr && tr.parentElement;
+  if (!tbody) return;
+  const i = Array.from(tbody.children).indexOf(tr);
+  const l = _ABN.linhas[i];
+  if (!l) return;                       // linha de total
+  const campo = td.dataset.campo;
+  const txt = td.textContent;
+  const n = parseFloat(txt.replace(/\./g, '').replace(',', '.').replace('%', ''));
+
+  if (campo === 'mes') { l.mes = txt.trim(); return; }
+  if (campo === 'subtotal') {
+    if (!isNaN(n)) _ABN._subtotaisEdit[l.ano] = n;
+    abonoGerarTabela();
+    return;
+  }
+  if (campo === 'ano') {
+    const y = parseInt(txt);
+    if (y > 1900) l.ano = y;
+  } else if (campo === 'dias') {
+    if (!isNaN(n) && n > 0) { l.dias = n; l.jus = n / 30; }
+  } else if (campo === 'jus') {
+    if (!isNaN(n) && n > 0) { l.jus = n / 100; l.dias = Math.round(l.jus * 30); }
+  } else if (campo === 'ipmdc') {
+    if (!isNaN(n)) {
+      l.ipmdc = n;
+      // mantém a etapa 2 coerente com a edição feita na tabela
+      if (l.mesNum && l.ano) {
+        _ABN.ipmdc[_abnKey(l.ano, l.mesNum)] = n;
+        _ABN._sigLinhas = abonoSig();
+      }
+    }
+  }
+  delete _ABN._subtotaisEdit[l.ano];    // linha mudou → subtotal volta a ser calculado
+  abonoGerarTabela();
+}
+
+/* ── Etapa 2: campos de IPMDC por mês ── */
+function abonoRenderIpmdc() {
+  const container = _abnEl('abn-campos-ipmdc');
+  if (!container) return;
+  const linhas = abonoGerarLinhas();
+  if (!linhas.length) {
+    container.innerHTML = '<div class="alert alert-warn">Informe o período de cálculo na etapa 1.</div>';
+    return;
+  }
+  const anos = [...new Set(linhas.map(l => l.ano))].sort();
+  const estiloInput = "width:100%;padding:.45rem .7rem;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.85rem;";
+  let html = '';
+  for (const ano of anos) {
+    html += `<div style="margin-bottom:1.5rem;">
+      <div style="font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--accent3);letter-spacing:2px;font-size:1rem;margin-bottom:.7rem;padding-bottom:.4rem;border-bottom:1px solid var(--border);">${ano}</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;">`;
+    for (const l of linhas.filter(x => x.ano === ano)) {
+      const key = _abnKey(l.ano, l.mesNum);
+      const val = _ABN.ipmdc[key] || '';
+      html += `<div class="field"><label>${l.decimo ? '13º Salário' : l.mes}</label>
+        <input type="number" step="0.01" value="${val}" placeholder="0,00" style="${estiloInput}"
+          onchange="_ABN.ipmdc['${key}']=parseFloat(this.value)||0"></div>`;
+    }
+    html += `</div></div>`;
+  }
+  container.innerHTML = html;
+}
+
+/* ── Importação das fichas financeiras ── */
+async function abonoLerPDFs(files, tipo) {
+  if (!files || !files.length) return;
+  const statusEl = _abnEl('abn-status-' + tipo);
+  if (statusEl) statusEl.innerHTML = '<span style="color:var(--accent);animation:blink 1s infinite;">&#x23F3; Lendo PDF...</span>';
+  let total = 0, erros = 0;
+  for (const f of Array.from(files)) {
+    try { total += await abonoLerPDF(f, tipo); }
+    catch (e) { erros++; console.error('[AbonoPDF]', e); }
+  }
+  if (statusEl) {
+    if (total > 0) statusEl.innerHTML = `<span style="color:var(--accent2);">&#x2713; ${total} valor(es) de IPMDC importado(s)${erros ? ` · ${erros} arquivo(s) com erro` : ''}</span>`;
+    else if (erros) statusEl.innerHTML = `<span style="color:var(--red);">&#x274C; Erro ao ler o PDF.</span>`;
+    else statusEl.innerHTML = `<span style="color:var(--red);">&#x26A0; Nenhum valor de IPMDC encontrado. Verifique o PDF.</span>`;
+  }
+  const logEl = _abnEl('abn-import-log');
+  if (logEl && _ABN._log.length) {
+    logEl.style.display = 'block';
+    logEl.className = 'alert alert-ok';
+    logEl.innerHTML = '&#x2705; Valores importados:<br>' + _ABN._log.join('<br>');
+  }
+  abonoRenderIpmdc();
+}
+
+async function abonoLerPDF(file, tipo) {
+  const pages = await extractText(file);
+  const fmt = v => v.toLocaleString('pt-BR', {minimumFractionDigits:2});
+  let n = 0;
+  if (tipo === 'decimo') {
+    // Ficha COM 13º: IPMDC do 13º = cód. 164 e/ou 177 (soma, se ambos)
+    const parsed = parseFichaPagesDec13(pages);
+    for (const [ano, val] of Object.entries(parsed.dec13)) {
+      if (val > 0) {
+        _ABN.ipmdc[`${ano}-13`] = val;
+        _ABN._log.push(`${ano} - 13º Salário: R$ ${fmt(val)}`);
+        n++;
+      }
+    }
+  } else {
+    // Ficha SEM 13º: IPMDC mensal (cód. 164; jan–mai/2004 soma o 165, regra do leitor de CTC)
+    const parsed = parseFichaPages(pages);
+    for (const anoStr of Object.keys(parsed.contrib)) {
+      const meses = parsed.contrib[anoStr];
+      for (let mi = 0; mi < 12; mi++) {
+        const c = meses[MESES_KEY[mi]];
+        if (c && c.desc > 0) {
+          _ABN.ipmdc[`${anoStr}-${String(mi + 1).padStart(2, '0')}`] = c.desc;
+          _ABN._log.push(`${_TRI_MESES[mi]}/${anoStr}: R$ ${fmt(c.desc)}`);
+          n++;
+        }
+      }
+    }
+  }
+  return n;
+}
+
+/* ── Etapa 4: documento ── */
+function abonoGerarDocumento() {
+  const v = id => ((_abnEl(id) || {}).value || '').trim();
+  const nome = v('abn-nome-servidor').toUpperCase();
+  const mat = v('abn-matricula'), proc = v('abn-processo'), fls = v('abn-folha');
+  const dest = v('abn-destinatario') || 'Sr. Chefe';
+  const setorEncam = v('abn-setor-encaminhamento') || 'DAA';
+  const artigoEncam = v('abn-setor-artigo') || 'À';
+  const dataDoc = v('abn-data-doc');
+  const observacao = v('abn-observacao');
+
+  abonoGerarTabela();   // garante linhas atualizadas
+  const sigDoc = JSON.stringify([_ABN.linhas, _ABN._subtotaisEdit, nome, mat, proc, fls, dest,
+                                 setorEncam, artigoEncam, dataDoc, observacao]);
+  // Preserva edições feitas diretamente no documento enquanto os dados de origem não mudarem
+  if (_ABN._docEditado && _ABN._docSig === sigDoc) return;
+
+  const iniV = _abnEl('abn-data-ini').value, fimV = _abnEl('abn-data-fim').value;
+  const periodoTexto = `${_abnFmtData(iniV)} a ${_abnFmtData(fimV)}`;
+  const sufixo13 = _ABN.linhas.some(l => l.decimo) ? ' + 13º Salário' : '';
+  const { sub, total } = abonoSubtotais();
+  const mesesUnicos = new Set(_ABN.linhas.filter(l => !l.decimo).map(l => `${l.ano}-${l.mesNum}`));
+
+  // Assinatura (mesma regra do documento de triênio)
+  const _nomesCustom = {'146189':'Rodrigo Gonçalves'};
+  const nomeAssinante = _nomesCustom[_sessaoAtual?.matricula] || _sessaoAtual?.nome || '';
+  const matAssinante  = (m => { const l = (m||'').replace(/\D/g,''); return l.length >= 6 ? l.slice(0,-1) + '-' + l.slice(-1) : l; })(_sessaoAtual?.matricula || '');
+
+  const brasaoEl = _abnEl('ep-brasao-src');
+  const brasaoSrc = brasaoEl ? brasaoEl.value : '';
+
+  const td = 'border:1px solid #ccc;padding:2px 5px;';
+  let anoAnterior = null, tabelaRows = '';
+  for (let i = 0; i < _ABN.linhas.length; i++) {
+    const l = _ABN.linhas[i];
+    const prox = _ABN.linhas[i + 1];
+    const isNovoAno = l.ano !== anoAnterior;
+    const isUltimoAno = !prox || prox.ano !== l.ano;
+    if (isNovoAno) anoAnterior = l.ano;
+    tabelaRows += `<tr>
+      <td style="${td}text-align:center;font-weight:${isNovoAno ? 'bold' : 'normal'};">${isNovoAno ? l.ano : ''}</td>
+      <td style="${td}">${escHtml(String(l.mes))}</td>
+      <td style="${td}text-align:center;">${l.dias}</td>
+      <td style="${td}text-align:center;">${_abnFmtJus(l.jus)}</td>
+      <td style="${td}text-align:right;">${_abnFmt(l.ipmdc)}</td>
+      <td style="${td}text-align:right;font-weight:${isUltimoAno ? 'bold' : 'normal'};">${isUltimoAno ? _abnFmt(sub[l.ano]) : ''}</td>
+    </tr>`;
+  }
+  tabelaRows += `<tr style="font-weight:bold;">
+    <td colspan="5" style="border:1px solid #999;padding:3px 5px;text-align:center;background:#e5e7eb;">TOTAL A PAGAR</td>
+    <td style="border:1px solid #999;padding:3px 5px;text-align:right;background:#e5e7eb;">${_abnFmt(total)}</td>
+  </tr>`;
+
+  const th = 'border:1px solid #999;padding:4px 5px;text-align:center;';
+  const docHtml = `
+    <div style="display:flex;justify-content:flex-end;font-size:10pt;margin-bottom:.3rem;">
+      ${proc ? `<span style="margin-right:2rem;">Processo: ${escHtml(proc)}</span>` : ''}
+      ${fls ? `<span>Fls: ${escHtml(fls)}</span>` : ''}
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.5rem;">
+      ${brasaoSrc ? `<img src="${brasaoSrc}" alt="Brasão" style="width:80px;height:80px;object-fit:contain;">` : ''}
+      <div style="font-size:10.5pt;line-height:1.6;">
+        <div style="font-weight:bold;">ESTADO DO RIO DE JANEIRO</div>
+        <div style="font-weight:bold;">PREFEITURA MUNICIPAL DE DUQUE DE CAXIAS</div>
+        <div>SECRETARIA MUNICIPAL DE ADMINISTRAÇÃO</div>
+        <div>DEPARTAMENTO DE DIREITOS E VANTAGENS</div>
+      </div>
+    </div>
+    <div style="margin-bottom:1rem;">${escHtml(dest)},</div>
+    <div style="margin-bottom:1.5rem;font-size:10.5pt;text-indent:2em;">
+      Pagamento referente a exercício anterior de Abono de Permanência no período de ${periodoTexto}${sufixo13}
+      <strong>a(o) servidor(a): <span style="text-transform:uppercase;">${escHtml(nome)}</span> – Matrícula ${escHtml(mat)}</strong>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:9.5pt;margin-bottom:.8rem;">
+      <thead>
+        <tr style="background:#e5e7eb;">
+          <th style="${th}">ANO</th><th style="${th}">MÊS</th><th style="${th}">DIAS</th>
+          <th style="${th}">JUS</th><th style="${th}">IPMDC</th><th style="${th}">SUBTOTAIS</th>
+        </tr>
+      </thead>
+      <tbody>${tabelaRows}</tbody>
+    </table>
+    <div style="font-size:10pt;margin-bottom:2rem;">NÚMERO DE MESES ENGLOBADOS: ${mesesUnicos.size}</div>
+    ${observacao ? `<div style="font-size:10pt;margin-bottom:2rem;"><strong>Observação:</strong> ${escHtml(observacao).replace(/\n/g, '<br>')}</div>` : ''}
+    <div style="font-size:11pt;margin-bottom:3rem;">Duque de Caxias, ${escHtml(dataDoc)}.</div>
+    <div style="display:flex;justify-content:center;font-size:11pt;">
+      <div style="text-align:center;min-width:280px;">
+        <div style="border-top:1px solid #000;margin-bottom:3px;"></div>
+        <div style="font-weight:bold;">${escHtml(nomeAssinante)}</div>
+        <div>Abonador – Matr. ${escHtml(matAssinante)}</div>
+      </div>
+    </div>
+    <div style="margin-top:3rem;font-size:10pt;padding-top:.8rem;">
+      <div style="text-align:center;">${escHtml(artigoEncam)} ${escHtml(setorEncam)}, solicitando autorização para pagamento.</div>
+      <div style="text-align:center;margin-top:2.5rem;">Em, _____/_____/_____.</div>
+      <div style="text-align:center;margin-top:2.5rem;">______________________________________</div>
+    </div>
+    <div style="margin-top:3rem;font-size:10pt;padding-top:.8rem;">
+      <div style="text-align:center;">De acordo.</div>
+      <div style="text-align:center;margin-top:2.5rem;">Em, _____/_____/_____.</div>
+      <div style="text-align:center;margin-top:4rem;">______________________________________</div>
+    </div>`;
+
+  _abnEl('abn-documento-final').innerHTML = docHtml;
+  _ABN._docSig = sigDoc;
+  _ABN._docEditado = false;
+
+  const anoIni = triParseDateLocal(iniV).y;
+  const limpo = mat.replace(/\D/g, '');
+  const matFormatada = limpo.length >= 2 ? limpo.slice(0, -1).padStart(5, '0') + '-' + limpo.slice(-1) : mat;
+  _ABN._nomeArquivo = `Desde ${anoIni} – Dif. Abono de Permanência – ${nome} – MATR ${matFormatada}`;
+  const nomeArqEl = _abnEl('abn-nome-arquivo');
+  if (nomeArqEl) nomeArqEl.textContent = _ABN._nomeArquivo;
+}
+
+function abonoRestaurarDocumento() {
+  _ABN._docEditado = false;
+  _ABN._docSig = null;
+  abonoGerarDocumento();
+}
+
+function abonoImprimir() {
+  const doc = _abnEl('abn-documento-final');
+  if (!doc) return;
+  const w = window.open('', '_blank', 'width=800,height=900');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Diferença de Abono de Permanência</title>
+    <style>@page{size:A4;margin:1.4cm;}body{font-family:'Times New Roman',serif;font-size:11pt;color:#000;}table{width:100%;border-collapse:collapse;}td,th{font-size:9.5pt;}</style>
+    </head><body>${doc.innerHTML}</body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(() => { w.print(); }, 400);
+}
+
+function abonoSalvarPDF() {
+  const doc = _abnEl('abn-documento-final');
+  if (!doc) return;
+  const nomeArq = _ABN._nomeArquivo || 'Dif. Abono de Permanência';
+  const executar = () => {
+    const opt = {
+      margin: [14, 14, 14, 14],
+      filename: nomeArq + '.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    html2pdf().set(opt).from(doc).outputPdf('blob').then(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = nomeArq + '.pdf';
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+    });
+  };
+  if (typeof html2pdf !== 'undefined') {
+    executar();
+  } else {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+    script.onload = executar;
+    script.onerror = () => alert('Não foi possível carregar a biblioteca de PDF. Verifique sua conexão com a internet.');
+    document.head.appendChild(script);
+  }
 }
 
 /* ══════════════════════════════════════════════════════════
