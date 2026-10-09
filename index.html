@@ -12220,6 +12220,13 @@ function abonoEditarCampo(td) {
   if (!l) return;                       // linha de total
   const campo = td.dataset.campo;
   const txt = td.textContent;
+  // Só focar e sair da célula (sem alterar o texto) não deve modificar nada
+  const atual = {
+    ano: String(l.ano), mes: String(l.mes), dias: String(l.dias), jus: _abnFmtJus(l.jus),
+    ipmdc: _abnFmt(abonoValor(l)),
+    subtotal: _abnFmt(abonoSubtotais().sub[l.ano])
+  }[campo];
+  if (atual !== undefined && txt.trim() === atual) return;
   const n = parseFloat(txt.replace(/\./g, '').replace(',', '.').replace('%', ''));
 
   if (campo === 'mes') { l.mes = txt.trim(); return; }
