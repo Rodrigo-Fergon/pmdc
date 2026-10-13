@@ -12490,7 +12490,8 @@ function abonoSalvarPDF() {
       filename: nomeArq + '.pdf',
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'], avoid: ['tr'] }
     };
     html2pdf().set(opt).from(doc).outputPdf('blob').then(blob => {
       const url = URL.createObjectURL(blob);
@@ -13441,7 +13442,8 @@ function trienioSalvarPDF() {
       filename:    nomeArq + '.pdf',
       image:       { type:'jpeg', quality:0.98 },
       html2canvas: { scale:2, useCORS:true },
-      jsPDF:       { unit:'mm', format:'a4', orientation:'portrait' }
+      jsPDF:       { unit:'mm', format:'a4', orientation:'portrait' },
+      pagebreak:   { mode:['css','legacy'], avoid:['tr'] }
     };
     html2pdf().set(opt).from(doc).outputPdf('blob').then(blob => {
       const url = URL.createObjectURL(blob);
@@ -13720,10 +13722,10 @@ function trienioCarregarExistente(input) {
         if (!_cur) { _txLines.push(''); continue; }
         const _hasMes = /\b(Janeiro|Fevereiro|Mar[cçg]o|Abril|Maio|Junho|Julho|Agosto|Setembro|Outubro|Novembro|Dezembro)\b/i.test(_cur)
                      || /13[°º]?\s*Sal[aá]r/i.test(_cur);
-        const _hasTri = /\b(6|12|18|24)\s*%/.test(_cur);
+        const _hasTri = /(?<![\d.,])(\d{1,2})\s*%/.test(_cur);
         if (_hasMes && !_hasTri && _ri + 1 < _txRaw.length) {
           const _next = _txRaw[_ri + 1].trim();
-          if (_next && /\b(6|12|18|24)\s*%/.test(_next)) {
+          if (_next && /(?<![\d.,])(\d{1,2})\s*%/.test(_next)) {
             _txLines.push(_cur + ' ' + _next);
             _ri++; continue;
           }
@@ -13773,11 +13775,11 @@ function trienioCarregarExistente(input) {
         if (dias < 1 || dias > 31) continue;
 
         // ── 5. Âncora TRI% (6%, 12%, 18%, 24%) ─────────────────────────
-        const mTri = seg.match(/\b(6|12|18|24)\s*%/);
+        const mTri = seg.match(/(?<![\d.,])(\d{1,2})\s*%/);
         if (!mTri) continue;
         const pct = parseInt(mTri[1]);
 
-        const posTri  = seg.indexOf(mTri[0]);
+        const posTri  = mTri.index;
         const anteTri = seg.slice(0, posTri);
         const depTri  = seg.slice(posTri + mTri[0].length);
 
@@ -13879,6 +13881,41 @@ function trienioCarregarExistente(input) {
           }
           // dias1+dias2 ≤ 32: split de triênio — manter como estão
         }
+      }
+
+      // ── Meses ausentes (ex.: linha cortada ao meio na quebra de página do PDF) ──
+      // Não dá para ler uma linha partida em duas páginas. O mês é recriado com os
+      // mesmos valores do último mês lido e o usuário é avisado para conferir.
+      const _avisosLacunas = [];
+      for (let _i = 0; _i < linhasExtraidas.length - 1; _i++) {
+        const _a = linhasExtraidas[_i], _b = linhasExtraidas[_i + 1];
+        if (_b.decimo) continue;
+        let _de, _ate;
+        if (!_a.decimo && _a.ano === _b.ano && _b.mesNum - _a.mesNum > 1) {
+          _de = _a.mesNum + 1; _ate = _b.mesNum - 1;
+        } else if (_a.decimo && _b.ano === _a.ano + 1 && _b.mesNum > 1) {
+          _de = 1; _ate = _b.mesNum - 1;
+        } else continue;
+        let _ref = null;
+        for (let _j = _i; _j >= 0; _j--) {
+          const _c = linhasExtraidas[_j];
+          if (!_c.ferias && !_c.decimo) { _ref = _c; break; }
+        }
+        if (!_ref) continue;
+        const _novas = [];
+        for (let _m = _de; _m <= _ate; _m++) {
+          _novas.push({
+            ano: _b.ano, mesNome: _TRI_MESES[_m-1], mesNum: _m, dias: 30, jus: 1,
+            vencimento: _ref.vencimento, percentual: _ref.percentual,
+            resultado: Math.round(_ref.vencimento * _ref.percentual * 100) / 100,
+            decimo: false, ferias: false, subtotalFim: null
+          });
+          const _k = `${_b.ano}-${String(_m).padStart(2,'0')}`;
+          if (!vencimentos[_k]) vencimentos[_k] = _ref.vencimento;
+          _avisosLacunas.push(`${_TRI_MESES[_m-1]}/${_b.ano}`);
+        }
+        linhasExtraidas.splice(_i + 1, 0, ..._novas);
+        _i += _novas.length;
       }
 
       console.log('[Triênio Extração]',
@@ -13995,6 +14032,14 @@ function trienioCarregarExistente(input) {
 
       // Ir direto para etapa 3 (tabela), já preenchida com dados do PDF
       trienioIrEtapa(3);
+
+      if (_avisosLacunas.length) {
+        setTimeout(() => alert(
+          'Atenção: não foi possível ler a(s) linha(s) de ' + _avisosLacunas.join(', ') +
+          ' (provavelmente cortada(s) na quebra de página do PDF).\n\n' +
+          'Elas foram recriadas com os mesmos valores do mês anterior. Confira na tabela e corrija se necessário.'
+        ), 300);
+      }
 
     } catch(err) {
       console.error('[TrienioCarregar]', err);
