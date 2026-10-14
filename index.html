@@ -8272,7 +8272,7 @@ const _MODULOS = [
   { id:'calc_mestrado', label:'↳ Diferença Mestrado',   niveis:['operador','admin'] },
   { id:'calc_doutorado',label:'↳ Diferença Doutorado',  niveis:['operador','admin'] },
   { id:'calc_nivel',    label:'↳ Mudança de Nível',     niveis:['operador','admin'] },
-  { id:'chamados',      label:'Chamados',                niveis:['admin'] },
+  { id:'chamados',      label:'Chamados',                niveis:['operador','admin'], defaultNiveis:['admin'] },
   { id:'usuarios',      label:'Gerenciar Usuários',      niveis:['admin'] },
   { id:'consulta_rapida', label:'Consulta Rápida',       niveis:['admin','operador'] },
   { id:'calculadoras',   label:'Calculadoras',            niveis:['operador','admin'], defaultOff:true },
@@ -8282,9 +8282,10 @@ const _MODULOS = [
 
 function _permissoesDefault(nivel) {
   const obj = {};
+  // defaultNiveis: níveis que têm o módulo por padrão (quando ausente, vale `niveis`).
   // defaultOff: módulo exclusivo do master por padrão — admin/operador só têm
   // acesso se a permissão for concedida explicitamente na tela "Usuários".
-  _MODULOS.forEach(m => { obj[m.id] = m.defaultOff ? false : m.niveis.includes(nivel); });
+  _MODULOS.forEach(m => { obj[m.id] = m.defaultOff ? false : (m.defaultNiveis || m.niveis).includes(nivel); });
   return obj;
 }
 
@@ -11525,7 +11526,7 @@ function atualizarBadgeChamados() {
   let pendentes = 0;
   if (_sessaoAtual.nivel === 'master') {
     pendentes = todos.filter(c => c.status === 'pendente' || (c.status === 'cancelado' && !c.cancelamentoVistoMaster)).length;
-  } else if (_sessaoAtual.nivel === 'admin') {
+  } else {
     pendentes = todos.filter(c => c.autorId === _sessaoAtual.id && c.respostaNaoLida).length;
   }
   const badgeTexto = document.getElementById('badge-chamados-texto');
@@ -11545,11 +11546,12 @@ function atualizarBadgeChamados() {
 
 function abrirChamados() {
   if (!_sessaoAtual) return;
+  if (!_temPermissao('chamados')) { _bloquearAcesso('Chamados'); return; }
   document.getElementById('tela-menu').style.display     = 'none';
   document.getElementById('tela-chamados').style.display = 'block';
   const ehMaster = _sessaoAtual.nivel === 'master';
   const cardForm = document.getElementById('card-novo-chamado');
-  if (cardForm) cardForm.style.display = (_sessaoAtual.nivel === 'admin') ? 'block' : 'none';
+  if (cardForm) cardForm.style.display = ehMaster ? 'none' : 'block';
   const titulo = document.getElementById('chamados-top-title');
   if (titulo) titulo.textContent = ehMaster ? '📨 CENTRAL DE CHAMADOS' : '📨 MEUS CHAMADOS';
   const labelCard = document.getElementById('chamados-card-label');
@@ -11689,8 +11691,8 @@ function abrirDetalhe(id) {
     saveChamados(arr);
     atualizarBadgeChamados();
   }
-  // Marcar resposta lida pelo admin
-  if (_sessaoAtual?.nivel === 'admin' && c.respostaNaoLida) {
+  // Marcar resposta lida pelo autor do chamado (qualquer usuário que não seja o master)
+  if (_sessaoAtual && _sessaoAtual.nivel !== 'master' && c.autorId === _sessaoAtual.id && c.respostaNaoLida) {
     const idx = arr.findIndex(x => x.id === id);
     arr[idx].respostaNaoLida = false;
     saveChamados(arr);
