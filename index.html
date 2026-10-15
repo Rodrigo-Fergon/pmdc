@@ -185,7 +185,8 @@ table.rev .vc-col{color:var(--accent2);font-weight:600;}
 .cert-ficha{border:1px solid #999;padding:.2rem .5rem;margin-bottom:.35rem;}
 .cert-ficha table{width:100%;border-collapse:collapse;table-layout:auto;}
 .cert-ficha td{padding:1.5px 5px;vertical-align:middle;font-size:9pt;border:1px solid #ccc;}
-.cert-ficha td.lb{background:#f0f0f0;color:#222;white-space:nowrap;}
+.cert-ficha td.lb{background:#f0f0f0;color:#222;white-space:nowrap;font-weight:normal;}
+.cert-ficha td.lb .ce{font-weight:bold;}
 .cert-ficha td.vl{font-weight:bold;}
 .cert-pagenum{text-align:right;font-size:8pt;color:#333;margin-bottom:2px;}
 table.ctb{width:100%;border-collapse:collapse;font-size:8.5pt;margin-bottom:.3rem;table-layout:fixed;}
@@ -6883,17 +6884,17 @@ async function gerarCertidao() {
 
   <div class="cert-ficha"><table>
     <tr>
-      <td class="lb" colspan="3"><strong>ÓRGÃO EXPEDIDOR</strong></td>
-      <td class="lb"><strong>CNPJ</strong></td>
+      <td class="lb" colspan="3">ÓRGÃO EXPEDIDOR</td>
+      <td class="lb">CNPJ</td>
     </tr>
     <tr>
       <td class="vl" colspan="3">${ce('orgao','SECRETARIA MUNICIPAL DE ADMINISTRAÇÃO','','280px')}</td>
       <td class="vl">${ce('cnpj','29.138.328/0001-50','','130px')}</td>
     </tr>
     <tr>
-      <td class="lb" colspan="2"><strong>NOME DO SERVIDOR</strong></td>
-      <td class="lb" style="white-space:nowrap;"><strong>MATRÍCULA</strong></td>
-      <td class="lb" style="white-space:nowrap;"><strong>DATA DE NASCIMENTO</strong></td>
+      <td class="lb" colspan="2">NOME DO SERVIDOR</td>
+      <td class="lb" style="white-space:nowrap;">MATRÍCULA</td>
+      <td class="lb" style="white-space:nowrap;">DATA DE NASCIMENTO</td>
     </tr>
     <tr>
       <td class="vl" colspan="2">${ce('nome',d.nome,'Nome Completo','300px')}</td>
@@ -6901,10 +6902,10 @@ async function gerarCertidao() {
       <td class="vl">${ce('nasc',d.nascimento,'dd/mm/aaaa','90px')}</td>
     </tr>
     <tr>
-      <td class="lb"><strong>NOME DA MÃE</strong></td>
-      <td class="lb"><strong>CPF</strong></td>
-      <td class="lb" style="white-space:nowrap;"><strong>PIS/PASEP</strong></td>
-      <td class="lb" style="white-space:nowrap;"><strong>DATA DE ADMISSÃO</strong></td>
+      <td class="lb">NOME DA MÃE</td>
+      <td class="lb">CPF</td>
+      <td class="lb" style="white-space:nowrap;">PIS/PASEP</td>
+      <td class="lb" style="white-space:nowrap;">DATA DE ADMISSÃO</td>
     </tr>
     <tr>
       <td class="vl" style="text-transform:uppercase;">${ce('mae',d.mae,'Nome da Mãe','200px')}</td>
@@ -6913,18 +6914,18 @@ async function gerarCertidao() {
       <td class="vl" style="white-space:nowrap;">${ce('adm',admDisplay,'dd/mm/aaaa','90px')}</td>
     </tr>
     <tr>
-      <td class="lb"><strong>CARGO / FUNÇÃO</strong></td>
-      <td class="lb" colspan="3"><strong>DATA DE EXONERAÇÃO/DEMISSÃO</strong></td>
+      <td class="lb">CARGO / FUNÇÃO</td>
+      <td class="lb" colspan="3">DATA DE EXONERAÇÃO/DEMISSÃO</td>
     </tr>
     <tr>
       <td class="vl" style="text-transform:uppercase;">${ce('cargo',d.cargo,'','200px')}</td>
       <td class="vl" colspan="3">${ce('dem',exoDisplay,'dd/mm/aaaa','90px')}</td>
     </tr>
     <tr>
-      <td class="lb" colspan="4"><strong>PERÍODO DE CONTRIBUIÇÃO COMPREENDIDO NESTA CERTIDÃO:</strong>
+      <td class="lb" colspan="4">PERÍODO DE CONTRIBUIÇÃO COMPREENDIDO NESTA CERTIDÃO:
         ${ce('periodo',periodoTexto,'dd/mm/aaaa A dd/mm/aaaa','280px')}</td>
     </tr>
-    ${finalidade ? `<tr><td colspan="4" style="background:#fff;color:#000;"><strong>FINALIDADE:</strong> <span class="ce" contenteditable="true" id="ce-finalidade" style="min-width:200px">${finalidade}</span></td></tr>` : ''}
+    ${finalidade ? `<tr><td colspan="4" style="background:#fff;color:#000;">FINALIDADE: <span class="ce" contenteditable="true" id="ce-finalidade" style="min-width:200px;font-weight:bold;">${finalidade}</span></td></tr>` : ''}
   </table></div>`;
 
   grupos.forEach(g => { html += blocoTabela(g); });
